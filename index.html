@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Préstamos de equipos</title>
+<meta name="description" content="Registro de equipos prestados: qué se prestó, a quién, desde cuándo y cuándo lo devolvieron.">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<!-- ====================================================================== -->
+<!--  PANTALLA 1 · ENTRAR                                                    -->
+<!--  Mientras no haya sesión, esto es lo único que existe en la página.     -->
+<!-- ====================================================================== -->
+<main id="pantalla-entrar" class="entrar" aria-labelledby="entrar-titulo">
+  <div class="entrar__caja">
+    <p class="lockup">PRÉSTAMOS DE EQUIPOS</p>
+    <h1 id="entrar-titulo" class="entrar__titulo">Entrar</h1>
+    <p class="entrar__ayuda">Usa el correo y la contraseña que te dieron para esta herramienta.</p>
+
+    <form id="form-entrar" novalidate>
+      <div class="campo">
+        <label class="rotulo" for="correo">Correo</label>
+        <input class="entrada" type="email" id="correo" name="correo"
+               autocomplete="username" inputmode="email" enterkeyhint="next"
+               required placeholder="nombre@empresa.com">
+      </div>
+
+      <div class="campo">
+        <label class="rotulo" for="clave">Contraseña</label>
+        <div class="campo__clave">
+          <input class="entrada" type="password" id="clave" name="clave"
+                 autocomplete="current-password" enterkeyhint="go" required>
+          <button class="boton boton--fantasma boton--ver" type="button"
+                  id="ver-clave" aria-pressed="false">Ver</button>
+        </div>
+      </div>
+
+      <p id="entrar-error" class="aviso aviso--error" role="alert" hidden></p>
+
+      <button class="boton boton--primario boton--ancho" type="submit" id="btn-entrar">Entrar</button>
+    </form>
+  </div>
+</main>
+
+<!-- ====================================================================== -->
+<!--  APP · solo visible con sesión iniciada                                 -->
+<!-- ====================================================================== -->
+<div id="app" hidden>
+
+  <header class="barra">
+    <p class="lockup">PRÉSTAMOS DE EQUIPOS</p>
+    <div class="barra__acciones">
+      <button class="boton boton--icono" type="button" id="btn-tema"
+              aria-label="Cambiar entre tema claro y oscuro" title="Cambiar tema">
+        <span class="glifo-tema" aria-hidden="true"></span>
+      </button>
+      <button class="boton boton--fantasma" type="button" id="btn-salir">Salir</button>
+    </div>
+  </header>
+
+  <p class="sesion"><span class="rotulo">SESIÓN</span> <span id="sesion-correo" class="mono"></span></p>
+
+  <nav class="pestanas" aria-label="Secciones">
+    <button class="pestana" type="button" id="tab-lista"
+            role="tab" aria-selected="true" aria-controls="vista-lista">La lista</button>
+    <button class="pestana" type="button" id="tab-registrar"
+            role="tab" aria-selected="false" aria-controls="vista-registrar">Registrar</button>
+  </nav>
+
+  <!-- ================================================================== -->
+  <!--  PANTALLA 2 · LA LISTA                                              -->
+  <!-- ================================================================== -->
+  <main id="vista-lista" class="vista" role="tabpanel" aria-labelledby="tab-lista" tabindex="-1">
+
+    <div class="filtros" role="group" aria-label="Filtrar préstamos por estado">
+      <button class="chip" type="button" data-filtro="prestados" aria-pressed="true">
+        <span class="chip__cifra mono" id="cifra-prestados">—</span>
+        <span class="chip__rotulo">PRESTADOS</span>
+      </button>
+      <button class="chip" type="button" data-filtro="devueltos" aria-pressed="false">
+        <span class="chip__cifra mono" id="cifra-devueltos">—</span>
+        <span class="chip__rotulo">DEVUELTOS</span>
+      </button>
+      <button class="chip" type="button" data-filtro="todos" aria-pressed="false">
+        <span class="chip__cifra mono" id="cifra-todos">—</span>
+        <span class="chip__rotulo">TODOS</span>
+      </button>
+    </div>
+
+    <p id="lista-conteo" class="conteo" role="status"></p>
+
+    <ul id="lista" class="registro"></ul>
+
+    <div id="lista-vacio" class="vacio" hidden>
+      <p id="lista-vacio-texto"></p>
+      <button class="boton boton--contorno" type="button" id="btn-vacio-registrar">Registrar préstamo</button>
+    </div>
+
+    <p id="lista-error" class="aviso aviso--error" role="alert" hidden></p>
+  </main>
+
+  <!-- ================================================================== -->
+  <!--  PANTALLA 3 · REGISTRAR                                             -->
+  <!-- ================================================================== -->
+  <main id="vista-registrar" class="vista" role="tabpanel" aria-labelledby="tab-registrar" tabindex="-1" hidden>
+    <form id="form-prestamo" novalidate>
+
+      <div class="campo">
+        <label class="rotulo" for="equipo">¿Qué equipo entregas?</label>
+        <input class="entrada" type="text" id="equipo" name="equipo" required
+               maxlength="120" autocomplete="off" autocapitalize="sentences"
+               enterkeyhint="next" placeholder="Ej.: Taladro Bosch GSB-13">
+      </div>
+
+      <div class="campo">
+        <label class="rotulo" for="persona">¿A quién se lo entregas?</label>
+        <input class="entrada" type="text" id="persona" name="persona" required
+               maxlength="120" autocomplete="off" autocapitalize="words"
+               enterkeyhint="next" placeholder="Ej.: Carlos Ruiz">
+      </div>
+
+      <div class="campo">
+        <label class="rotulo" for="fecha">Fecha de entrega</label>
+        <input class="entrada" type="date" id="fecha" name="fecha" required>
+        <div class="atajos" role="group" aria-label="Atajos de fecha de entrega">
+          <button class="chip chip--mini" type="button" data-dias="0">Hoy</button>
+          <button class="chip chip--mini" type="button" data-dias="-1">Ayer</button>
+          <button class="chip chip--mini" type="button" data-dias="-7">Hace una semana</button>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label class="rotulo" for="nota">Nota <span class="rotulo__suave">(opcional)</span></label>
+        <textarea class="entrada" id="nota" name="nota" rows="3" maxlength="500"
+                  placeholder="Ej.: sale para la sede norte"></textarea>
+      </div>
+
+      <p id="prestamo-error" class="aviso aviso--error" role="alert" hidden></p>
+
+      <button class="boton boton--primario boton--ancho" type="submit" id="btn-prestar">Registrar préstamo</button>
+    </form>
+  </main>
+
+  <div id="anuncio" class="visualmente-oculto" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" hidden></div>
+</div>
+
+<noscript>
+  <p class="aviso aviso--error">Esta herramienta necesita JavaScript activado para funcionar.</p>
+</noscript>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

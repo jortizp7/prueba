@@ -1,0 +1,552 @@
+/* ==========================================================================
+   PRÉSTAMOS DE EQUIPOS — sistema visual "Calibre"
+   Metáfora: mesa de control de turno. La pantalla es una lista de trabajo,
+   no un tablero de métricas. Nada decorativo que no reporte un dato.
+
+   Reglas que no se aflojan:
+   - Radio 0 en superficies y filas; 2px SOLO en lo que se toca, para que el
+     redondeo signifique "esto es interactivo".
+   - El estado nunca depende solo del color: glifo con silueta propia +
+     etiqueta escrita + frase completa.
+   - Cifras siempre en mono tabular, alineadas a la derecha sobre una regla.
+   - Ningún input por debajo de 16px: más pequeño, iOS hace zoom y saca a la
+     persona de la lista.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. TOKENS — el bloque :root plano define la paleta clara COMPLETA.
+   Los bloques de tema solo redefinen valores existentes, nunca crean tokens.
+   -------------------------------------------------------------------------- */
+:root {
+  --ink:          #182126;  /* grafito andino, nunca negro puro */
+  --bg:           #E8EBE7;  /* papel de taller: gris con sesgo verde frío */
+  --surface:      #F2F4F1;
+  --band:         #EAEEE9;  /* bandeo alterno, solo en escritorio */
+  --line:         #CDD4CE;
+  --muted:        #5C6A66;
+  --accent:       #1E5F7B;  /* azul instrumento: SOLO lo accionable */
+  --accent-ink:   #F2F4F1;  /* texto sobre relleno de acento */
+  --ok:           #1F6A4C;
+  --danger:       #A32130;
+  --danger-band:  #F7E3E4;
+  --warn-fill:    #F0E4CC;
+
+  --sombra-hoja: 0 -2px 0 0 var(--ink);
+
+  --paso: 4px;
+  --lateral: 16px;
+}
+
+/* Tema oscuro por preferencia del sistema. Guardado para que una elección
+   explícita de tema claro le gane a un sistema oscuro.
+   No se invierte: cambia de material, de papel a vidrio de consola. El sesgo
+   del neutro pasa de verde a azul-grafito porque un verde a baja luminancia
+   se lee como pantalla dañada. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:         #E4EAE7;
+    --bg:          #10171A;
+    --surface:     #151D20;
+    --band:        #192226;
+    --line:        #273236;
+    --muted:       #93A3A2;
+    --accent:      #74B9D8;
+    --accent-ink:  #10171A;
+    --ok:          #4FAE83;
+    --danger:      #E4676E;
+    --danger-band: #2A1A1D;
+    --warn-fill:   #3A2E14;
+  }
+}
+
+/* La elección explícita gana también en el otro sentido. */
+:root[data-theme="dark"] {
+  --ink:         #E4EAE7;
+  --bg:          #10171A;
+  --surface:     #151D20;
+  --band:        #192226;
+  --line:        #273236;
+  --muted:       #93A3A2;
+  --accent:      #74B9D8;
+  --accent-ink:  #10171A;
+  --ok:          #4FAE83;
+  --danger:      #E4676E;
+  --danger-band: #2A1A1D;
+  --warn-fill:   #3A2E14;
+}
+
+/* --------------------------------------------------------------------------
+   2. BASE
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  /* El fondo se pinta explícito: un body transparente toma prestado el
+     fondo del host y rompe el tema. */
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Archivo vive solo en mayúsculas y nunca toca texto corrido. */
+.lockup, .rotulo, .chip__rotulo, .etiqueta, .pestana {
+  font-family: "Archivo", "Helvetica Neue", "Arial Narrow", Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lockup {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Foco visible siempre. Nunca outline:none sin reemplazo. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   3. CONTROLES
+   -------------------------------------------------------------------------- */
+.boton {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.boton--primario {
+  min-height: 48px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-size: 16px;
+}
+.boton--primario:hover:not(:disabled) { filter: brightness(1.08); }
+
+.boton--contorno {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.boton--contorno:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
+
+.boton--fantasma { color: var(--accent); padding: 0 10px; }
+.boton--fantasma:hover:not(:disabled) { text-decoration: underline; }
+
+.boton--ancho { width: 100%; }
+
+.boton--icono {
+  width: 44px; min-width: 44px;
+  padding: 0;
+  border-color: var(--line);
+}
+
+.boton:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Glifo de tema: círculo mitad macizo, mitad hueco. */
+.glifo-tema {
+  width: 16px; height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+
+.campo { display: flex; flex-direction: column; gap: 6px; }
+
+.rotulo {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.rotulo__suave { letter-spacing: 0.04em; opacity: 0.8; }
+
+.entrada {
+  font-family: inherit;
+  /* 16px es un mínimo duro, no una preferencia estética. */
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-bottom: 2px solid var(--ink);
+  border-radius: 2px;
+  padding: 12px;
+  min-height: 48px;
+  width: 100%;
+}
+.entrada::placeholder { color: var(--muted); opacity: 1; }
+textarea.entrada { min-height: 76px; resize: vertical; }
+
+.campo__clave { display: flex; gap: 8px; align-items: stretch; }
+.campo__clave .entrada { flex: 1; }
+.boton--ver { border: 1px solid var(--line); min-width: 60px; }
+
+/* Chips: cuadrados, radio 2px porque se tocan. */
+.chip {
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  white-space: nowrap;
+}
+.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.chip__cifra { font-size: 20px; font-weight: 500; line-height: 1.1; }
+.chip__rotulo { font-size: 10.5px; font-weight: 600; }
+
+.chip--mini {
+  flex-direction: row;
+  min-height: 40px;
+  font-size: 14px;
+  font-family: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. PANTALLA 1 · ENTRAR
+   -------------------------------------------------------------------------- */
+.entrar {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px var(--lateral);
+}
+
+.entrar__caja {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--ink);
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entrar__titulo {
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 12px 0 0;
+  text-wrap: balance;
+}
+
+.entrar__ayuda {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 40ch;
+}
+
+#form-entrar { display: flex; flex-direction: column; gap: 16px; }
+
+/* --------------------------------------------------------------------------
+   5. ARMAZÓN DE LA APP
+   -------------------------------------------------------------------------- */
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 56px;
+  padding: 8px var(--lateral);
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 2px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.barra__acciones { display: flex; align-items: center; gap: 8px; }
+
+.sesion {
+  margin: 0;
+  padding: 8px var(--lateral);
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.sesion .mono { font-size: 12px; color: var(--ink); }
+
+/* Pestañas de texto con subrayado de 2px en la activa. No son píldoras. */
+.pestanas {
+  display: flex;
+  gap: 20px;
+  padding: 0 var(--lateral);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.pestana {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 14px 0 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.pestana[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+
+.vista { padding: 16px var(--lateral) 40px; }
+.vista:focus { outline: none; }
+
+#form-prestamo { display: flex; flex-direction: column; gap: 20px; max-width: 560px; }
+
+.atajos { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* --------------------------------------------------------------------------
+   6. PANTALLA 2 · LA LISTA
+   -------------------------------------------------------------------------- */
+.filtros {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+}
+
+.conteo {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.registro {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.fila:last-child { border-bottom: 0; }
+
+.fila--devuelto { color: var(--muted); }
+
+.fila__cuerpo { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.fila__linea {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fila__equipo {
+  font-size: 16px;
+  font-weight: 600;
+  /* El texto que crece envuelve; recortarlo sería un error. */
+  overflow-wrap: anywhere;
+}
+.fila--devuelto .fila__equipo { font-weight: 400; }
+
+.fila__fecha { font-size: 13px; font-weight: 500; white-space: nowrap; color: var(--muted); }
+
+.fila__persona { font-size: 14px; overflow-wrap: anywhere; }
+.fila__persona strong { font-weight: 600; }
+
+.fila__estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.etiqueta { font-size: 10.5px; font-weight: 600; }
+.etiqueta--prestado { color: var(--ok); }
+.etiqueta--devuelto { color: var(--muted); }
+
+.fila__nota {
+  font-size: 13px;
+  color: var(--muted);
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+
+.fila__pie {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.fila__accion { margin-top: 6px; }
+/* Separación real entre la acción y el resto: una devolución marcada por
+   error con el pulgar es un dato falso que nadie corrige después. */
+.fila__accion .boton { min-height: 44px; }
+
+/* Glifos de estado: siluetas distintas, dibujadas con currentColor para que
+   sobrevivan a impresión en gris y a forced-colors. */
+.glifo {
+  width: 14px; height: 14px;
+  margin-top: 4px;
+  flex: none;
+}
+.glifo--prestado {
+  background: currentColor;
+  color: var(--ok);
+}
+.glifo--devuelto {
+  border: 2px solid currentColor;
+  color: var(--muted);
+  position: relative;
+}
+/* Perforación central: el tiquete ponchado cierra el ciclo sin gastar color. */
+.glifo--devuelto::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.vacio {
+  padding: 32px 16px;
+  background: var(--surface);
+  border-top: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.vacio p { margin: 0; font-size: 15px; max-width: 46ch; }
+
+/* --------------------------------------------------------------------------
+   7. AVISOS
+   -------------------------------------------------------------------------- */
+.aviso {
+  margin: 0;
+  padding: 12px;
+  font-size: 14px;
+  border-left: 4px solid var(--danger);
+  background: var(--danger-band);
+  color: var(--ink);
+}
+
+.toast {
+  position: fixed;
+  left: var(--lateral);
+  right: var(--lateral);
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 20;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 2px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: subir 180ms ease-out;
+}
+.toast .boton { color: var(--bg); text-decoration: underline; min-height: 44px; }
+
+@keyframes subir {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* --------------------------------------------------------------------------
+   8. ESCRITORIO — la misma retícula, desplegada. Solo desde 900px.
+   -------------------------------------------------------------------------- */
+@media (min-width: 900px) {
+  :root { --lateral: 24px; }
+
+  .barra, .sesion, .pestanas { padding-left: 24px; padding-right: 24px; }
+
+  .vista { max-width: 1000px; margin: 0 auto; }
+
+  .fila {
+    grid-template-columns: 14px 1fr auto;
+    align-items: start;
+    padding: 12px;
+  }
+  /* El bandeo alterno solo aquí: a 72px de alto en un teléfono, vibra. */
+  .fila:nth-child(even) { background: var(--band); }
+
+  .fila__accion { margin-top: 0; align-self: center; }
+}
+
+/* --------------------------------------------------------------------------
+   9. MOVIMIENTO — la animación nunca es el único portador de información.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
