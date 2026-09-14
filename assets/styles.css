@@ -80,6 +80,11 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* El atributo hidden tiene que ganar siempre. Sin esto, cualquier clase que
+   declare display (flex, grid) lo anula y la pantalla de entrar seguiría
+   visible encima de la app después de iniciar sesión. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -254,6 +259,7 @@ textarea.entrada { min-height: 76px; resize: vertical; }
    4. PANTALLA 1 · ENTRAR
    -------------------------------------------------------------------------- */
 .entrar {
+  min-height: 100vh;   /* respaldo para navegadores sin dvh */
   min-height: 100dvh;
   display: flex;
   align-items: center;
@@ -440,7 +446,9 @@ textarea.entrada { min-height: 76px; resize: vertical; }
   gap: 4px 10px;
 }
 
-.fila__accion { margin-top: 6px; }
+/* En móvil la acción va debajo del texto, en la columna del cuerpo: sin
+   grid-column caería en la columna de 14px del glifo. */
+.fila__accion { grid-column: 2; margin-top: 6px; }
 /* Separación real entre la acción y el resto: una devolución marcada por
    error con el pulgar es un dato falso que nadie corrige después. */
 .fila__accion .boton { min-height: 44px; }
@@ -451,23 +459,16 @@ textarea.entrada { min-height: 76px; resize: vertical; }
   width: 14px; height: 14px;
   margin-top: 4px;
   flex: none;
-}
-.glifo--prestado {
   background: currentColor;
-  color: var(--ok);
 }
+.glifo--prestado { color: var(--ok); }
+/* Perforación central: el tiquete ponchado cierra el ciclo sin gastar color.
+   Es un hueco real hecho con máscara, no un círculo pintado encima, así que
+   deja ver lo que haya detrás: la superficie o el bandeo de escritorio. */
 .glifo--devuelto {
-  border: 2px solid currentColor;
   color: var(--muted);
-  position: relative;
-}
-/* Perforación central: el tiquete ponchado cierra el ciclo sin gastar color. */
-.glifo--devuelto::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: var(--surface);
+  -webkit-mask: radial-gradient(circle at center, transparent 0 3px, #000 3.5px);
+          mask: radial-gradient(circle at center, transparent 0 3px, #000 3.5px);
 }
 
 .vacio {
@@ -537,7 +538,7 @@ textarea.entrada { min-height: 76px; resize: vertical; }
   /* El bandeo alterno solo aquí: a 72px de alto en un teléfono, vibra. */
   .fila:nth-child(even) { background: var(--band); }
 
-  .fila__accion { margin-top: 0; align-self: center; }
+  .fila__accion { grid-column: 3; margin-top: 0; align-self: center; }
 }
 
 /* --------------------------------------------------------------------------

@@ -51,20 +51,23 @@ alguien sin sesión lea o escriba los datos.
 ### 3. Copiar las credenciales
 
 1. Ve a **Project Settings → Data API** y copia la **Project URL**.
-2. Ve a **Project Settings → API Keys** y copia la clave **anon / public**.
-3. Ábre [config.js](config.js) y reemplaza los dos valores.
+2. Ve a **Project Settings → API Keys** y copia la **Publishable key** (empieza por
+   `sb_publishable_`). Si tu proyecto solo muestra las llaves antiguas, usa la
+   **anon / public** de la pestaña **Legacy API keys**: funciona igual.
+3. Abre [config.js](config.js) y reemplaza los dos valores.
 
-La `anon key` es pública por diseño: viaja al navegador de cada persona y no es un
-secreto. Lo que protege los datos son las políticas RLS del paso 2. **Nunca** pongas ahí
-la `service_role key`: esa sí salta RLS y jamás debe salir de un servidor.
+Esa llave es pública por diseño: viaja al navegador de cada persona y no es un secreto.
+Lo que protege los datos son las políticas RLS del paso 2. **Nunca** pongas ahí la
+**Secret key** ni la `service_role`: esas sí saltan RLS y jamás deben salir de un
+servidor.
 
 ### 4. Crear los usuarios del equipo
 
 No hay registro abierto: las cuentas las creas tú, para que nadie de fuera entre.
 
-1. **Authentication → Providers** y confirma que **Email** está habilitado.
-2. Para evitar el correo de confirmación en cuentas internas, en
-   **Authentication → Sign In / Providers → Email** desactiva **Confirm email**.
+1. **Authentication → Sign In / Providers** y confirma que **Email** está habilitado.
+2. Para evitar el correo de confirmación en cuentas internas, ahí mismo, dentro de
+   **Email**, desactiva **Confirm email**.
 3. **Authentication → Users → Add user → Create new user**. Escribe el correo y una
    contraseña, y marca **Auto Confirm User**.
 4. Repite para cada persona del equipo.
@@ -103,8 +106,14 @@ muestra quién la registró y quién marcó la devolución.
 
 **Una devolución no se puede sobrescribir.** El `UPDATE` filtra por `devuelto_en is null`.
 Si dos personas tocan *Devolver* a la vez, la segunda no pisa el registro de la primera:
-la app le dice que ya estaba devuelto y refresca la lista. Un trigger en la base impide
-además que una actualización cambie el equipo, la persona, la fecha o el autor original.
+la app le dice que ya estaba devuelto y refresca la lista.
+
+**La base no le cree al navegador.** Dos triggers en `schema.sql` cierran lo que las
+políticas dejan abierto, incluso para alguien que llame la API a mano con una sesión
+válida: quién registró y cuándo salen de la sesión y del reloj del servidor; un préstamo
+siempre nace sin devolver y con fecha de entrega que no puede ser futura; una
+actualización no puede cambiar el equipo, la persona, la fecha ni el autor; y una
+devolución ya registrada no se puede deshacer ni reescribir.
 
 **Las fechas se calculan en hora de Colombia.** `fecha_entrega` se guarda como `date`,
 sin hora, y el día de hoy se resuelve siempre en `America/Bogota`. Un celular mal

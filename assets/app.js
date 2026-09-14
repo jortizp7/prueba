@@ -20,7 +20,7 @@
   if (!window.supabase || !CONFIG.url || !CONFIG.anonKey ||
       CONFIG.url.indexOf("TU-PROYECTO") !== -1 || CONFIG.anonKey.indexOf("TU_ANON_KEY") !== -1) {
     mostrarErrorEntrar(
-      "Falta configurar la conexión con Supabase. Abre el archivo config.js y pega la URL y la anon key de tu proyecto."
+      "Falta conectar la app con Supabase. En el archivo config.js hay que pegar la URL del proyecto y su llave pública (Publishable key)."
     );
     $("btn-entrar").disabled = true;
     return;
@@ -141,13 +141,13 @@
       return "No pudimos conectar. Revisa tu conexión e inténtalo otra vez.";
     }
     if (codigo === "42501" || m.indexOf("row-level security") !== -1) {
-      return "Tu sesión no tiene permiso para guardar esto. Vuelve a entrar e inténtalo de nuevo.";
+      return "Tu sesión no tiene permiso para guardar esto. Sal, vuelve a entrar e inténtalo de nuevo.";
     }
     if (codigo === "23514") {
-      return "Revisa los datos: la fecha de entrega no puede ser posterior a la devolución.";
+      return "Revisa los datos: la fecha de entrega no puede ser futura, y el equipo y la persona no pueden quedar vacíos.";
     }
     if (codigo === "42P01") {
-      return "Falta crear las tablas en Supabase. Ejecuta el archivo supabase/schema.sql en el editor SQL.";
+      return "Falta crear la tabla en Supabase. Ejecuta el archivo supabase/schema.sql en el editor SQL.";
     }
     return "No se pudo guardar. Revisa la conexión e inténtalo otra vez.";
   }
@@ -248,6 +248,7 @@
   function entrarAlApp(sesion) {
     usuario = sesion.user;
     $("sesion-correo").textContent = usuario.email || "";
+    $("fecha").max = hoyBogota();
     pantallaEntrar.hidden = true;
     app.hidden = false;
     $("clave").value = "";
@@ -264,17 +265,19 @@
     $("lista").textContent = "";
   }
 
+  // Única puerta de sesión. En supabase-js v2 este evento también se dispara
+  // al cargar (INITIAL_SESSION), así que no hace falta llamar a getSession.
+  // El trabajo se difiere con setTimeout porque consultar la base dentro del
+  // propio callback puede quedar esperando el candado interno de la sesión.
   cliente.auth.onAuthStateChange(function (evento, sesion) {
-    if (sesion && sesion.user) {
-      if (!usuario) entrarAlApp(sesion);
-      else usuario = sesion.user;
-    } else {
-      if (usuario) salirDelApp();
-    }
-  });
-
-  cliente.auth.getSession().then(function (res) {
-    if (res.data && res.data.session) entrarAlApp(res.data.session);
+    setTimeout(function () {
+      if (sesion && sesion.user) {
+        if (!usuario) entrarAlApp(sesion);
+        else usuario = sesion.user;
+      } else if (usuario) {
+        salirDelApp();
+      }
+    }, 0);
   });
 
   // ------------------------------------------------------------------------
@@ -390,14 +393,11 @@
   function construirFila(p) {
     var devuelto = !!p.devuelto_en;
 
+    // Sin aria-label en el li: el contenido ya se lee en orden natural
+    // (equipo, fecha, con quién, estado), y una etiqueta encima haría que
+    // algunos lectores de pantalla se salten la nota y la autoría.
     var li = document.createElement("li");
     li.className = "fila" + (devuelto ? " fila--devuelto" : "");
-
-    // La fila entera se anuncia como una frase completa, no como una pila de
-    // celdas sueltas: "Taladro Bosch, prestado a Carlos Ruiz, prestado hace 3 días".
-    li.setAttribute("aria-label",
-      p.equipo + ", " + (devuelto ? "devuelto" : "prestado") + " a " + p.prestado_a + ", " +
-      (devuelto ? fraseDevuelto(p.devuelto_en) : frasePrestado(p.fecha_entrega)));
 
     var glifo = document.createElement("span");
     glifo.className = "glifo " + (devuelto ? "glifo--devuelto" : "glifo--prestado");
@@ -465,25 +465,28 @@
 
     li.appendChild(cuerpo);
 
-    // Acción
-    var accion = document.createElement("div");
-    accion.className = "fila__accion";
+    // Acción. Solo se crea para lo que sigue prestado: un contenedor vacío
+    // ocuparía una fila fantasma en la retícula.
     if (!devuelto) {
+      var accion = document.createElement("div");
+      accion.className = "fila__accion";
       var boton = document.createElement("button");
       boton.type = "button";
       boton.className = "boton boton--contorno";
       boton.textContent = "Devolver";
-      boton.setAttribute("aria-label", "Marcar devolución de " + p.equipo);
+      boton.setAttribute("aria-label", "Marcar devolución de " + p.equipo + ", prestado a " + p.prestado_a);
       boton.addEventListener("click", function () { devolver(p, boton); });
       accion.appendChild(boton);
+      li.appendChild(accion);
     }
-    li.appendChild(accion);
 
     return li;
   }
 
   // ------------------------------------------------------------------------
   // Marcar como devuelto
+  // La hora y el autor de la devolución los fija el servidor (trigger en
+  // schema.sql); lo que se envía aquí es solo la intención.
   // ------------------------------------------------------------------------
   function devolver(p, boton) {
     boton.disabled = true;
@@ -531,6 +534,7 @@
   // PANTALLA 3 · REGISTRAR
   // ------------------------------------------------------------------------
   $("fecha").value = hoyBogota();
+  $("fecha").max = hoyBogota();
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-dias]"), function (chip) {
     chip.addEventListener("click", function () {
@@ -551,7 +555,7 @@
     if (!persona) { faltaCampo("persona", "Escribe a quién le entregas el equipo."); return; }
     if (!fecha) { faltaCampo("fecha", "Indica la fecha en que se entregó el equipo."); return; }
     if (diasEntre(hoyBogota(), fecha) > 0) {
-      faltaCampo("fecha", "La fecha de entrega no puede ser futura.");
+      faltaCampo("fecha", "La fecha de entrega no puede ser futura. Si el equipo sale hoy, usa Hoy.");
       return;
     }
 
@@ -598,8 +602,12 @@
   }
 
   // Al volver a la pestaña, la lista puede estar desactualizada: otra persona
-  // pudo registrar o devolver algo mientras tanto.
+  // pudo registrar o devolver algo mientras tanto. También puede haber
+  // cambiado el día, y con él la fecha máxima del formulario.
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && usuario) cargarPrestamos();
+    if (!document.hidden && usuario) {
+      $("fecha").max = hoyBogota();
+      cargarPrestamos();
+    }
   });
 })();

@@ -27,10 +27,10 @@ create table if not exists public.prestamos (
   -- pueda quedar desincronizada.
   devuelto_en      timestamptz,
 
-  -- Quien registro el prestamo. El id apunta a auth.users; el correo se
-  -- guarda aparte porque el navegador no puede leer la tabla auth.users
-  -- para resolver el nombre despues.
-  registrado_por         uuid  not null references auth.users (id) on delete set null,
+  -- Quien registro el prestamo. El id apunta a auth.users y queda en null si
+  -- esa cuenta se borra algun dia; el correo se guarda aparte justamente para
+  -- que el historial siga diciendo quien fue.
+  registrado_por         uuid  references auth.users (id) on delete set null,
   registrado_por_correo  text  not null,
 
   -- Quien marco la devolucion (puede ser otra persona).
@@ -43,9 +43,14 @@ create table if not exists public.prestamos (
     check (devuelto_en is null or devuelto_en >= fecha_entrega::timestamptz)
 );
 
+-- Si la tabla ya existia de una version anterior de este archivo, donde
+-- registrado_por era not null, se corrige: not null con "on delete set null"
+-- hace fallar el borrado de cualquier usuario que haya registrado algo.
+alter table public.prestamos alter column registrado_por drop not null;
+
 comment on table  public.prestamos                is 'Prestamos de equipos del equipo de trabajo.';
 comment on column public.prestamos.devuelto_en    is 'Null = prestado. Con valor = devuelto en ese instante.';
-comment on column public.prestamos.fecha_entrega  is 'Dia en que el equipo salio. Puede ser retroactiva.';
+comment on column public.prestamos.fecha_entrega  is 'Dia en que el equipo salio. Puede ser retroactiva, nunca futura.';
 
 -- ---------------------------------------------------------------------------
 --  Indices
@@ -74,8 +79,8 @@ create policy "leer prestamos autenticado"
   to authenticated
   using (true);
 
--- Al registrar, el autor queda amarrado a la sesion: nadie puede registrar
--- un prestamo a nombre de otra persona.
+-- Al registrar, el autor queda amarrado a la sesion. El trigger de abajo ya
+-- lo fuerza; la politica lo exige de nuevo por si alguien quita el trigger.
 drop policy if exists "registrar prestamo autenticado" on public.prestamos;
 create policy "registrar prestamo autenticado"
   on public.prestamos for insert
@@ -83,7 +88,8 @@ create policy "registrar prestamo autenticado"
   with check (registrado_por = auth.uid());
 
 -- Cualquiera del equipo marca devoluciones: quien recibe el equipo de vuelta
--- no siempre es quien lo entrego.
+-- no siempre es quien lo entrego. Lo que una actualizacion puede cambiar lo
+-- limita el trigger de abajo, no esta politica.
 drop policy if exists "marcar devolucion autenticado" on public.prestamos;
 create policy "marcar devolucion autenticado"
   on public.prestamos for update
@@ -95,16 +101,47 @@ create policy "marcar devolucion autenticado"
 -- borrado desde el navegador. El historial de prestamos no se borra.
 
 -- ---------------------------------------------------------------------------
---  Blindaje del registro de autoria
---  Las politicas de UPDATE permiten cambiar cualquier columna. Este trigger
---  impide que una actualizacion reescriba quien registro el prestamo, cuando
---  se creo, o los datos originales del prestamo: una devolucion solo puede
---  tocar los campos de devolucion.
+--  Blindaje al registrar
+--  Lo que dice quien y cuando no se le cree al navegador: se toma de la
+--  sesion y del reloj del servidor. Un prestamo siempre nace sin devolver.
+-- ---------------------------------------------------------------------------
+create or replace function public.prestamos_al_registrar()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.fecha_entrega > (now() at time zone 'America/Bogota')::date then
+    raise exception 'La fecha de entrega no puede ser futura.'
+      using errcode = '23514';
+  end if;
+
+  new.registrado_por        := auth.uid();
+  new.registrado_por_correo := coalesce(auth.jwt() ->> 'email', new.registrado_por_correo);
+  new.creado_en             := now();
+  new.devuelto_en           := null;
+  new.devuelto_por_correo   := null;
+  return new;
+end;
+$$;
+
+drop trigger if exists prestamos_al_registrar_trg on public.prestamos;
+create trigger prestamos_al_registrar_trg
+  before insert on public.prestamos
+  for each row execute function public.prestamos_al_registrar();
+
+-- ---------------------------------------------------------------------------
+--  Blindaje al actualizar
+--  La politica de UPDATE deja tocar cualquier columna. Este trigger reduce
+--  eso a una sola operacion legitima: marcar la devolucion de un prestamo
+--  que sigue prestado.
+--  - Los datos originales del prestamo y su autoria no cambian nunca.
+--  - Una devolucion ya registrada no se puede deshacer ni reescribir.
+--  - La hora y el autor de la devolucion salen del servidor y de la sesion.
 -- ---------------------------------------------------------------------------
 create or replace function public.prestamos_proteger_registro()
 returns trigger
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
@@ -116,6 +153,17 @@ begin
   new.registrado_por        := old.registrado_por;
   new.registrado_por_correo := old.registrado_por_correo;
   new.creado_en             := old.creado_en;
+
+  if old.devuelto_en is not null then
+    new.devuelto_en         := old.devuelto_en;
+    new.devuelto_por_correo := old.devuelto_por_correo;
+  elsif new.devuelto_en is not null then
+    new.devuelto_en         := now();
+    new.devuelto_por_correo := coalesce(auth.jwt() ->> 'email', new.devuelto_por_correo);
+  else
+    new.devuelto_por_correo := null;
+  end if;
+
   return new;
 end;
 $$;
@@ -126,6 +174,6 @@ create trigger prestamos_proteger_registro_trg
   for each row execute function public.prestamos_proteger_registro();
 
 -- ============================================================================
---  Listo. Siguiente paso: Authentication > Providers > Email, y crear los
---  usuarios del equipo en Authentication > Users > Add user.
+--  Listo. Siguiente paso: Authentication > Sign In / Providers > Email, y
+--  crear los usuarios del equipo en Authentication > Users > Add user.
 -- ============================================================================
