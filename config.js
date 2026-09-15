@@ -15,6 +15,6 @@
 // ---------------------------------------------------------------------------
 
 window.CONFIG_SUPABASE = {
-  url: "https://TU-PROYECTO.supabase.co",
-  anonKey: "TU_ANON_KEY",
+  url: "https://uwqjqjarzgqvfbsucsvc.supabase.co",
+  anonKey: "sb_publishable_HfUCmcePqxAHELG-KzRMMw_QL0XpoCS",
 };

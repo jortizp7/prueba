@@ -66,11 +66,15 @@ servidor.
 No hay registro abierto: las cuentas las creas tú, para que nadie de fuera entre.
 
 1. **Authentication → Sign In / Providers** y confirma que **Email** está habilitado.
-2. Para evitar el correo de confirmación en cuentas internas, ahí mismo, dentro de
+2. En esa misma página, en **User Signups**, desactiva **Allow new users to sign up** y
+   pulsa **Save**. Este es el paso que cierra la puerta: con el registro abierto,
+   cualquiera que conozca la dirección de la app puede crearse una cuenta desde fuera
+   y ver todos los préstamos. Crear usuarios desde el panel sigue funcionando igual.
+3. Para evitar el correo de confirmación en cuentas internas, ahí mismo, dentro de
    **Email**, desactiva **Confirm email**.
-3. **Authentication → Users → Add user → Create new user**. Escribe el correo y una
+4. **Authentication → Users → Add user → Create new user**. Escribe el correo y una
    contraseña, y marca **Auto Confirm User**.
-4. Repite para cada persona del equipo.
+5. Repite para cada persona del equipo.
 
 ### 5. Probarlo en local
 
