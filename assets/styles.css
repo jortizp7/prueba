@@ -1,14 +1,18 @@
 /* ==========================================================================
-   PRÉSTAMOS DE EQUIPOS — sistema visual "Aurora"
-   Superficie clara y espaciosa, acento en degradado azul-violeta y dos
-   resplandores difusos de fondo. Diseño propio, inspirado en el estilo de
-   las landing modernas, adaptado a una herramienta que se opera a diario.
+   PRÉSTAMOS DE EQUIPOS — identidad corporativa
+   Tomada del sitio de la empresa: Montserrat, rojo #E52528, negro y blanco
+   sobre grises neutros. Sobria y de alto contraste, como corresponde a una
+   herramienta interna de operación.
+
+   Disciplina de color: el rojo de marca es SOLO lo accionable (botón
+   principal, filtro activo, regla superior). El estado no lo usa, así el
+   rojo siempre significa "esto se toca" y nunca compite por atención.
 
    Lo que no se negocia, porque la app se usa de pie y con una mano:
    - El estado nunca depende solo del color: punto relleno vs. aro, más la
-     palabra escrita.
+     palabra escrita. Sin pareja rojo/verde, que es la peor para daltonismo.
    - Botones de 44px como mínimo y campos de 16px (por debajo, iOS hace zoom).
-   - Cifras en mono tabular para que las columnas no bailen.
+   - Cifras con tabular-nums para que las columnas no bailen.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -16,96 +20,91 @@
    Los bloques de tema solo redefinen valores existentes.
    -------------------------------------------------------------------------- */
 :root {
-  --bg:          #F5F6FB;  /* neutro con sesgo violeta, no un gris de sistema */
+  --bg:          #F4F5F7;  /* gris neutro de oficina, sin sesgo de color */
   --surface:     #FFFFFF;
-  --surface-2:   #EFF1F9;  /* segmentos, campos y bandas */
-  --veil:        rgba(255, 255, 255, 0.72);  /* barra translúcida */
-  --line:        #E4E7F2;
-  --line-strong: #D3D8EA;
-  --ink:         #12142B;
-  --muted:       #5D6288;
+  --surface-2:   #EDEEF1;  /* segmentos, campos y bandas */
+  --veil:        rgba(255, 255, 255, 0.82);  /* barra translúcida */
+  --line:        #E1E3E8;
+  --line-strong: #CBCED6;
+  --ink:         #111111;  /* el negro de la marca */
+  --muted:       #6B7075;
 
-  --accent:      #5B5BF5;
-  --accent-2:    #9333EA;
+  --accent:      #E52528;  /* rojo corporativo */
+  --accent-2:    #B81E20;  /* su sombra, para el degradado del botón */
   --accent-ink:  #FFFFFF;
-  --accent-soft: rgba(91, 91, 245, 0.10);
+  --accent-soft: rgba(229, 37, 40, 0.09);
 
-  --ok:          #0E9F6E;
-  --ok-soft:     rgba(14, 159, 110, 0.12);
-  --danger:      #E11D48;
-  --danger-soft: rgba(225, 29, 72, 0.10);
+  /* El estado vive en la escala de grises: la forma y la palabra lo dicen. */
+  --estado:      #313131;
+  --estado-soft: rgba(49, 49, 49, 0.08);
 
-  --glow-1:      rgba(91, 91, 245, 0.28);
-  --glow-2:      rgba(147, 51, 234, 0.22);
+  --danger:      #B3151C;  /* más oscuro que el rojo de marca, y va en panel */
+  --danger-soft: rgba(229, 37, 40, 0.10);
 
-  --sombra:      0 1px 2px rgba(18, 20, 43, 0.04), 0 8px 24px rgba(18, 20, 43, 0.06);
-  --sombra-alta: 0 2px 4px rgba(18, 20, 43, 0.06), 0 18px 40px rgba(18, 20, 43, 0.12);
-  --sombra-acento: 0 6px 20px rgba(91, 91, 245, 0.30);
+  --sombra:      0 1px 2px rgba(17, 17, 17, 0.05), 0 6px 18px rgba(17, 17, 17, 0.06);
+  --sombra-alta: 0 2px 6px rgba(17, 17, 17, 0.08), 0 16px 36px rgba(17, 17, 17, 0.12);
+  --sombra-acento: 0 4px 14px rgba(229, 37, 40, 0.28);
 
-  --r-chico:  10px;
-  --r-medio:  14px;
-  --r-grande: 20px;
+  --r-chico:  8px;
+  --r-medio:  12px;
+  --r-grande: 16px;
   --lateral:  16px;
 }
 
-/* El tema oscuro no invierte: cambia de papel a vidrio. El neutro se corre
-   hacia el azul profundo para que el acento siga encendiendo. */
+/* El tema oscuro no invierte: cambia de papel a taller con poca luz. El rojo
+   sube de luminosidad para sostener el contraste sobre el fondo oscuro. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:          #0A0A12;
-    --surface:     #14162B;
-    --surface-2:   #1B1E38;
-    --veil:        rgba(20, 22, 43, 0.72);
-    --line:        #262A48;
-    --line-strong: #343A60;
-    --ink:         #EDEEF8;
-    --muted:       #9AA0C6;
+    --bg:          #0E0F11;
+    --surface:     #17191C;
+    --surface-2:   #1F2226;
+    --veil:        rgba(23, 25, 28, 0.82);
+    --line:        #2A2D32;
+    --line-strong: #3A3E45;
+    --ink:         #F2F3F5;
+    --muted:       #A3A8AE;
 
-    --accent:      #7C7CFF;
-    --accent-2:    #C084FC;
-    --accent-ink:  #0A0A12;
-    --accent-soft: rgba(124, 124, 255, 0.16);
+    --accent:      #FF5A5D;
+    --accent-2:    #E52528;
+    --accent-ink:  #1A0304;
+    --accent-soft: rgba(255, 90, 93, 0.14);
 
-    --ok:          #34D399;
-    --ok-soft:     rgba(52, 211, 153, 0.16);
-    --danger:      #FB7185;
-    --danger-soft: rgba(251, 113, 133, 0.16);
+    --estado:      #D7DADF;
+    --estado-soft: rgba(215, 218, 223, 0.12);
 
-    --glow-1:      rgba(91, 91, 245, 0.30);
-    --glow-2:      rgba(147, 51, 234, 0.24);
+    --danger:      #FF8A8C;
+    --danger-soft: rgba(255, 90, 93, 0.14);
 
-    --sombra:      0 1px 2px rgba(0, 0, 0, 0.40), 0 8px 24px rgba(0, 0, 0, 0.45);
-    --sombra-alta: 0 2px 4px rgba(0, 0, 0, 0.45), 0 18px 40px rgba(0, 0, 0, 0.55);
-    --sombra-acento: 0 6px 20px rgba(124, 124, 255, 0.35);
+    --sombra:      0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.45);
+    --sombra-alta: 0 2px 6px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.6);
+    --sombra-acento: 0 4px 14px rgba(255, 90, 93, 0.30);
   }
 }
 
 :root[data-theme="dark"] {
-  --bg:          #0A0A12;
-  --surface:     #14162B;
-  --surface-2:   #1B1E38;
-  --veil:        rgba(20, 22, 43, 0.72);
-  --line:        #262A48;
-  --line-strong: #343A60;
-  --ink:         #EDEEF8;
-  --muted:       #9AA0C6;
+  --bg:          #0E0F11;
+  --surface:     #17191C;
+  --surface-2:   #1F2226;
+  --veil:        rgba(23, 25, 28, 0.82);
+  --line:        #2A2D32;
+  --line-strong: #3A3E45;
+  --ink:         #F2F3F5;
+  --muted:       #A3A8AE;
 
-  --accent:      #7C7CFF;
-  --accent-2:    #C084FC;
-  --accent-ink:  #0A0A12;
-  --accent-soft: rgba(124, 124, 255, 0.16);
+  --accent:      #FF5A5D;
+  --accent-2:    #E52528;
+  --accent-ink:  #1A0304;
+  --accent-soft: rgba(255, 90, 93, 0.14);
 
-  --ok:          #34D399;
-  --ok-soft:     rgba(52, 211, 153, 0.16);
-  --danger:      #FB7185;
-  --danger-soft: rgba(251, 113, 133, 0.16);
+  --estado:      #D7DADF;
+  --estado-soft: rgba(215, 218, 223, 0.12);
 
-  --glow-1:      rgba(91, 91, 245, 0.30);
-  --glow-2:      rgba(147, 51, 234, 0.24);
+  --danger:      #FF8A8C;
+  --danger-soft: rgba(255, 90, 93, 0.14);
 
-  --sombra:      0 1px 2px rgba(0, 0, 0, 0.40), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --sombra-alta: 0 2px 4px rgba(0, 0, 0, 0.45), 0 18px 40px rgba(0, 0, 0, 0.55);
-  --sombra-acento: 0 6px 20px rgba(124, 124, 255, 0.35);
+  --sombra:      0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 18px rgba(0, 0, 0, 0.45);
+  --sombra-alta: 0 2px 6px rgba(0, 0, 0, 0.5), 0 16px 36px rgba(0, 0, 0, 0.6);
+  --sombra-acento: 0 4px 14px rgba(255, 90, 93, 0.30);
 }
 
 /* --------------------------------------------------------------------------
@@ -122,7 +121,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Plus Jakarta Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Montserrat", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.55;
   font-weight: 400;
@@ -132,27 +131,26 @@ body {
   min-height: 100dvh;
 }
 
-/* Los dos resplandores del fondo. Hechos con degradados radiales: sin
-   imágenes, sin peso extra, y se adaptan solos a los dos temas. */
+/* La firma de marca: una regla roja de 3px cruzando el borde superior.
+   Un solo gesto, presente en las tres pantallas. */
 body::before {
   content: "";
   position: fixed;
-  inset: -20% -10% auto -10%;
-  height: 78vh;
-  z-index: -1;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 30;
   pointer-events: none;
-  background:
-    radial-gradient(42rem 30rem at 18% 0%, var(--glow-1), transparent 65%),
-    radial-gradient(38rem 26rem at 88% 8%, var(--glow-2), transparent 62%);
-  filter: blur(18px);
+  background: var(--accent);
 }
 
 p { margin: 0; }
 
+/* Montserrat es la tipografía de la marca, así que también lleva las cifras:
+   con tabular-nums las fechas y los contadores quedan en columna. */
 .mono {
-  font-family: "JetBrains Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0.01em;
 }
 
 .visualmente-oculto {
@@ -167,7 +165,7 @@ p { margin: 0; }
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 /* --------------------------------------------------------------------------
@@ -178,7 +176,6 @@ p { margin: 0; }
   font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -0.01em;
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid transparent;
@@ -190,19 +187,20 @@ p { margin: 0; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: transform 120ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition: transform 120ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 .boton:active:not(:disabled) { transform: translateY(1px); }
 
-/* El único degradado de la interfaz vive en la acción principal. */
 .boton--primario {
   min-height: 48px;
   font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--accent-ink);
-  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background-image: linear-gradient(180deg, var(--accent), var(--accent-2));
   box-shadow: var(--sombra-acento);
 }
-.boton--primario:hover:not(:disabled) { filter: saturate(1.1) brightness(1.06); }
+.boton--primario:hover:not(:disabled) { filter: brightness(1.06); }
 
 .boton--contorno {
   border-color: var(--line-strong);
@@ -231,7 +229,6 @@ p { margin: 0; }
 
 .boton:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 
-/* Glifo del cambio de tema: un disco mitad lleno, mitad vacío. */
 .glifo-tema {
   width: 16px; height: 16px;
   border: 2px solid currentColor;
@@ -242,12 +239,13 @@ p { margin: 0; }
 .campo { display: flex; flex-direction: column; gap: 7px; }
 
 .rotulo {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--muted);
 }
-.rotulo__suave { font-weight: 400; opacity: 0.85; }
+.rotulo__suave { font-weight: 500; letter-spacing: 0.04em; opacity: 0.85; }
 
 .entrada {
   font-family: inherit;
@@ -255,26 +253,26 @@ p { margin: 0; }
   line-height: 1.4;
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-chico);
   padding: 13px 14px;
   min-height: 48px;
   width: 100%;
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
-.entrada::placeholder { color: var(--muted); opacity: 0.8; }
-.entrada:hover { border-color: var(--line-strong); }
+.entrada::placeholder { color: var(--muted); opacity: 0.85; }
+.entrada:hover { border-color: var(--muted); }
 .entrada:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 textarea.entrada { min-height: 84px; resize: vertical; }
 
 .campo__clave { display: flex; gap: 8px; align-items: stretch; }
 .campo__clave .entrada { flex: 1; min-width: 0; }
 .boton--ver {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: var(--surface);
   color: var(--muted);
   min-width: 78px;
@@ -282,14 +280,14 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 }
 .boton--ver:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); }
 
-/* Píldoras de filtro: la cifra manda, el rótulo acompaña. */
+/* Filtros: rectángulos con esquina apenas suavizada, no píldoras. */
 .chip {
   font-family: inherit;
   font-size: 14px;
   min-height: 44px;
   padding: 8px 16px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-chico);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
@@ -297,30 +295,28 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 0;
   white-space: nowrap;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 160ms ease;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
-.chip:hover { border-color: var(--line-strong); }
+.chip:hover { border-color: var(--muted); }
 .chip[aria-pressed="true"] {
   color: var(--accent-ink);
-  border-color: transparent;
-  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: var(--accent-2);
+  background-image: linear-gradient(180deg, var(--accent), var(--accent-2));
   box-shadow: var(--sombra-acento);
 }
 .chip__cifra {
-  font-family: "JetBrains Mono", Consolas, monospace;
-  font-variant-numeric: tabular-nums;
   font-size: 19px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 .chip__rotulo {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .chip--mini {
@@ -328,7 +324,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   min-height: 40px;
   padding: 0 14px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   background: var(--surface-2);
   border-color: transparent;
 }
@@ -351,6 +347,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
   border-radius: var(--r-grande);
   box-shadow: var(--sombra-alta);
   padding: 36px 32px 32px;
@@ -359,31 +356,31 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   gap: 6px;
 }
 
-/* La marca: un cuadro con el degradado del acento, no un logotipo falso. */
+/* Marca tipográfica: el nombre en Montserrat con un bloque rojo delante.
+   No se dibuja ningún logotipo. */
 .lockup {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  letter-spacing: 0.12em;
+  color: var(--ink);
 }
 .lockup::before {
   content: "";
-  width: 26px; height: 26px;
+  width: 6px; height: 22px;
   flex: none;
-  border-radius: 8px;
-  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: var(--sombra-acento);
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .entrar__titulo {
   font-size: 30px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   line-height: 1.15;
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   text-wrap: balance;
 }
 
@@ -407,8 +404,8 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   padding: 10px var(--lateral);
   padding-top: max(10px, env(safe-area-inset-top));
   background: var(--veil);
-  backdrop-filter: saturate(180%) blur(14px);
-  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(150%) blur(12px);
+  -webkit-backdrop-filter: saturate(150%) blur(12px);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -428,42 +425,39 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   max-width: 1040px;
   margin: 0 auto;
 }
-.sesion .rotulo { font-size: 11px; letter-spacing: 0.06em; }
-.sesion .mono { font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.sesion .rotulo { font-size: 10px; }
+.sesion .mono { font-size: 13px; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
 
-/* Pestañas como control segmentado. */
+/* Pestañas: subrayado grueso en la activa, como una carpeta de archivo. */
 .pestanas {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  margin: 14px var(--lateral) 0;
-  background: var(--surface-2);
-  border-radius: 999px;
+  display: flex;
+  gap: 24px;
+  padding: 0 var(--lateral);
+  margin: 16px auto 0;
+  max-width: 1040px;
+  border-bottom: 1px solid var(--line);
 }
 .pestana {
   appearance: none;
   border: 0;
+  border-bottom: 3px solid transparent;
   background: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  padding: 0 18px;
-  min-height: 40px;
-  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 2px 10px;
+  min-height: 44px;
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition: color 150ms ease, border-color 150ms ease;
 }
 .pestana:hover { color: var(--ink); }
-.pestana[aria-selected="true"] {
-  color: var(--ink);
-  background: var(--surface);
-  box-shadow: var(--sombra);
-}
+.pestana[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 
 .vista {
-  padding: 20px var(--lateral) 56px;
+  padding: 22px var(--lateral) 56px;
   max-width: 1040px;
   margin: 0 auto;
 }
@@ -534,7 +528,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 .fila__equipo {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
@@ -542,6 +536,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 .fila__fecha {
   font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
   color: var(--muted);
 }
@@ -559,23 +554,24 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   color: var(--muted);
 }
 
-/* Etiqueta de estado como píldora. El color la acompaña, no la sostiene. */
+/* Etiqueta de estado en gris: el rojo queda libre para lo accionable. */
 .etiqueta {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 4px 9px;
+  border-radius: 3px;
 }
-.etiqueta--prestado { color: var(--ok); background: var(--ok-soft); }
-.etiqueta--devuelto { color: var(--muted); background: var(--surface-2); }
+.etiqueta--prestado { color: var(--surface); background: var(--estado); }
+.etiqueta--devuelto { color: var(--muted); background: var(--estado-soft); }
 
 .fila__nota {
   font-size: 14px;
   color: var(--muted);
   background: var(--surface-2);
-  border-radius: var(--r-chico);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 var(--r-chico) var(--r-chico) 0;
   padding: 10px 12px;
   overflow-wrap: anywhere;
 }
@@ -583,7 +579,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 .fila__pie {
   font-size: 12px;
   color: var(--muted);
-  opacity: 0.85;
+  opacity: 0.9;
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
@@ -593,7 +589,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 .fila__accion { grid-column: 2; margin-top: 4px; }
 
 /* Punto de estado: relleno = prestado, aro = devuelto. La silueta cambia,
-   así que se distingue en escala de grises y en impresión. */
+   así que se distingue en gris, impreso y con cualquier daltonismo. */
 .glifo {
   width: 10px; height: 10px;
   margin-top: 9px;
@@ -601,13 +597,13 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   flex: none;
 }
 .glifo--prestado {
-  background: var(--ok);
-  box-shadow: 0 0 0 4px var(--ok-soft);
+  background: var(--estado);
+  box-shadow: 0 0 0 3px var(--estado-soft);
 }
 .glifo--devuelto {
   background: transparent;
   border: 2px solid var(--muted);
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .vacio {
@@ -626,17 +622,18 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 /* --------------------------------------------------------------------------
    7. AVISOS
+   El error es un panel con barra lateral, no un botón: aunque comparte
+   familia de color con la marca, la forma los separa de un vistazo.
    -------------------------------------------------------------------------- */
 .aviso {
   padding: 13px 15px;
   font-size: 14px;
-  border-radius: var(--r-medio);
-  background: var(--danger-soft);
-  border: 1px solid transparent;
-  color: var(--danger);
   font-weight: 500;
+  border-radius: 0 var(--r-chico) var(--r-chico) 0;
+  background: var(--danger-soft);
+  border-left: 4px solid var(--danger);
+  color: var(--danger);
 }
-.aviso--error { border-color: color-mix(in srgb, var(--danger) 26%, transparent); }
 
 .toast {
   position: fixed;
@@ -657,7 +654,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  animation: subir 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: subir 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .toast .boton { color: var(--bg); opacity: 0.85; }
 .toast .boton:hover:not(:disabled) { color: var(--bg); opacity: 1; background: rgba(255, 255, 255, 0.14); }
