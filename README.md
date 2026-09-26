@@ -5,11 +5,20 @@ Registro compartido de qué equipo se prestó, a quién, desde cuándo, y cuánd
 Tres pantallas:
 
 1. **Entrar** — correo y contraseña. Sin sesión iniciada no se ve nada.
-2. **La lista** — todos los préstamos con su estado y un filtro: prestados / devueltos / todos.
+2. **La lista** — los préstamos con su estado y un filtro: prestados / devueltos / todos.
 3. **Registrar** — formulario con equipo, a quién, fecha de entrega y nota opcional.
 
-El botón **Devolver** está en cada fila de la lista, que es donde se usa: se marca la
-devolución con el equipo en la otra mano, sin abrir un formulario.
+Dos roles:
+
+| | Usuario normal | Administrador |
+|---|---|---|
+| Registrar préstamos | Sí | Sí |
+| Ver préstamos | Solo los que registró | Todos |
+| Marcar devoluciones | No | Sí |
+
+El administrador es `jortiz@equitel.com.co`. El botón **Devolver** solo le aparece a él,
+en cada fila que sigue prestada: se marca la devolución con el equipo en la otra mano,
+sin abrir un formulario.
 
 ## Cómo está hecho
 
@@ -22,7 +31,7 @@ index.html            Las tres pantallas
 assets/styles.css     Sistema visual, tema claro y oscuro
 assets/app.js         Sesión, lista, registro y devolución
 config.js             URL y anon key de tu proyecto de Supabase
-supabase/schema.sql   Tabla, índices, políticas RLS y trigger
+supabase/schema.sql   Tablas, índices, rol de administrador, políticas RLS y triggers
 ```
 
 ---
@@ -46,7 +55,12 @@ supabase/schema.sql   Tabla, índices, políticas RLS y trigger
    duplica ni borra nada.
 
 Esto crea la tabla `prestamos` y activa Row Level Security, que es lo que impide que
-alguien sin sesión lea o escriba los datos.
+alguien sin sesión lea o escriba los datos, y que un usuario normal vea préstamos ajenos
+o marque devoluciones. También crea la tabla `administradores` con el correo del
+administrador.
+
+Cada vez que cambie `schema.sql` hay que volver a ejecutarlo completo, antes de publicar
+la nueva versión de la app.
 
 ### 3. Copiar las credenciales
 
@@ -74,7 +88,25 @@ No hay registro abierto: las cuentas las creas tú, para que nadie de fuera entr
    **Email**, desactiva **Confirm email**.
 4. **Authentication → Users → Add user → Create new user**. Escribe el correo y una
    contraseña, y marca **Auto Confirm User**.
-5. Repite para cada persona del equipo.
+5. Repite para cada persona del equipo, incluido el administrador con
+   `jortiz@equitel.com.co`: su cuenta se crea igual que las demás, y el rol lo da la
+   tabla `administradores`.
+
+Para sumar otro administrador, en **SQL Editor**:
+
+```sql
+insert into public.administradores (correo) values ('otro@equitel.com.co');
+```
+
+Y para quitarle el rol a alguien:
+
+```sql
+delete from public.administradores where correo = 'otro@equitel.com.co';
+```
+
+La base aplica el cambio de inmediato; la pantalla lo refleja la próxima vez que esa
+persona abra la app. Esa tabla no se puede
+leer ni modificar desde el navegador: nadie puede nombrarse administrador a sí mismo.
 
 ### 5. Probarlo en local
 
@@ -99,18 +131,32 @@ queda accesible igual.
 Cualquier hosting estático sirve. Con Vercel, apuntando al repositorio, no hay nada que
 configurar: no hay build, y el sitio se actualiza en cada push.
 
+El proyecto `prestamos-de-equipos` en Vercel hoy **no** está enlazado al repositorio: se
+publica subiendo la carpeta, así que un push a GitHub no cambia lo publicado.
+
 ---
 
 ## Decisiones que conviene conocer
 
+**Los permisos los aplica la base, no la pantalla.** Esconder el botón *Devolver* o los
+préstamos ajenos en la app es solo cortesía. Lo que de verdad lo impide son las políticas
+RLS de `schema.sql`: aunque alguien llame la API a mano con su sesión, Supabase solo le
+devuelve sus propios préstamos y le rechaza cualquier devolución si no es administrador.
+
+**"Sus préstamos" son los que registró.** Un usuario normal ve los préstamos que registró
+con su cuenta, no los que se le entregaron a él. El campo *a quién* es texto libre y no
+está atado a ninguna cuenta, así que no hay forma segura de saber que `Carlos Ruiz` es
+tal usuario. Si más adelante se quiere que cada persona vea lo que tiene en su poder, el
+campo *a quién* tiene que pasar a ser una cuenta elegida de una lista.
+
 **Los préstamos no se borran.** No hay política de `DELETE`, así que RLS bloquea
-cualquier borrado desde el navegador. Un préstamo solo cambia de estado a devuelto. Como
-no hay rol de administrador, la trazabilidad es el único control que queda: cada fila
-muestra quién la registró y quién marcó la devolución.
+cualquier borrado desde el navegador, también para el administrador. Un préstamo solo
+cambia de estado a devuelto, y cada fila muestra quién la registró y quién marcó la
+devolución.
 
 **Una devolución no se puede sobrescribir.** El `UPDATE` filtra por `devuelto_en is null`.
-Si dos personas tocan *Devolver* a la vez, la segunda no pisa el registro de la primera:
-la app le dice que ya estaba devuelto y refresca la lista.
+Si dos administradores tocan *Devolver* a la vez, el segundo no pisa el registro del
+primero: la app le dice que ya estaba devuelto y refresca la lista.
 
 **La base no le cree al navegador.** Dos triggers en `schema.sql` cierran lo que las
 políticas dejan abierto, incluso para alguien que llame la API a mano con una sesión

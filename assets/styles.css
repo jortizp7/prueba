@@ -450,6 +450,29 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 .sesion .rotulo { font-size: 10px; }
 .sesion .mono { font-size: 13px; color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
 
+/* Insignia de rol: en gris, como las etiquetas de estado. El rojo sigue
+   reservado para lo accionable. */
+.insignia {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+
+/* Qué alcanza a ver esta sesión, dicho en una frase. */
+.alcance {
+  padding: 6px var(--lateral) 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.alcance:empty { display: none; }
+
 /* Pestañas: subrayado grueso en la activa, como una carpeta de archivo. */
 .pestanas {
   display: flex;

@@ -32,6 +32,7 @@
   // Estado en memoria
   // ------------------------------------------------------------------------
   var usuario = null;
+  var esAdmin = false;
   var prestamos = [];
   var filtro = "prestados";
   var cargando = false;
@@ -152,6 +153,18 @@
     return "No se pudo guardar. Revisa la conexión e inténtalo otra vez.";
   }
 
+  function mensajeRol(error) {
+    var m = (error && error.message ? error.message : "").toLowerCase();
+    var codigo = error && error.code ? String(error.code) : "";
+    if (codigo === "PGRST202" || codigo === "42883") {
+      return "Falta actualizar la base en Supabase: ejecuta de nuevo supabase/schema.sql en el editor SQL. Mientras tanto no se pueden marcar devoluciones.";
+    }
+    if (m.indexOf("failed to fetch") !== -1 || m.indexOf("network") !== -1) {
+      return "No pudimos conectar. Revisa tu conexión e inténtalo otra vez.";
+    }
+    return "No pudimos confirmar tus permisos. Sal, vuelve a entrar e inténtalo de nuevo.";
+  }
+
   // ------------------------------------------------------------------------
   // Avisos
   // ------------------------------------------------------------------------
@@ -253,11 +266,44 @@
     app.hidden = false;
     $("clave").value = "";
     limpiarErrorEntrar();
-    cargarPrestamos();
+    consultarRol();
+  }
+
+  // El rol lo decide la base (función es_admin de schema.sql). La app solo lo
+  // usa para no ofrecer lo que la sesión no puede hacer: aunque alguien
+  // forzara el botón Devolver, las políticas RLS rechazarían el cambio.
+  // La lista se carga después, porque de él depende si lleva ese botón.
+  function consultarRol() {
+    esAdmin = false;
+    pintarRol(false);
+    cliente.rpc("es_admin")
+      .then(function (res) {
+        if (res.error) throw res.error;
+        esAdmin = res.data === true;
+        return null;
+      })
+      .catch(function (err) { return err; })
+      .then(function (errorRol) {
+        if (!usuario) return;
+        // Sin rol confirmado no se afirma qué alcanza a ver la sesión.
+        pintarRol(!errorRol);
+        cargarPrestamos();
+        // Va después de cargar, porque la carga limpia los avisos al empezar.
+        if (errorRol) mostrarAviso("lista-error", mensajeRol(errorRol));
+      });
+  }
+
+  function pintarRol(conocido) {
+    $("sesion-rol").hidden = !esAdmin;
+    $("alcance").textContent = !conocido ? "" : esAdmin
+      ? "Ves los préstamos de todo el equipo y eres quien registra las devoluciones."
+      : "Ves solo los préstamos que registraste tú. Las devoluciones las registra el administrador.";
   }
 
   function salirDelApp() {
     usuario = null;
+    esAdmin = false;
+    pintarRol(false);
     prestamos = [];
     app.hidden = true;
     pantallaEntrar.hidden = false;
@@ -356,10 +402,16 @@
     return prestamos;
   }
 
+  // El administrador ve la lista de todo el equipo; los demás, solo lo suyo.
   var VACIOS = {
     prestados: "Ningún equipo está prestado en este momento.",
     devueltos: "Todavía no hay devoluciones registradas.",
     todos: "Todavía no hay préstamos registrados. Registra el primero y aparecerá aquí."
+  };
+  var VACIOS_PROPIOS = {
+    prestados: "Ninguno de los préstamos que registraste sigue prestado.",
+    devueltos: "Todavía no hay devoluciones de los préstamos que registraste.",
+    todos: "Todavía no has registrado préstamos. Registra el primero y aparecerá aquí."
   };
 
   function pintarLista() {
@@ -377,7 +429,7 @@
     if (!items.length) {
       lista.hidden = true;
       $("lista-vacio").hidden = false;
-      $("lista-vacio-texto").textContent = VACIOS[filtro];
+      $("lista-vacio-texto").textContent = (esAdmin ? VACIOS : VACIOS_PROPIOS)[filtro];
       $("lista-conteo").textContent = "";
       return;
     }
@@ -449,8 +501,8 @@
       cuerpo.appendChild(nota);
     }
 
-    // Pie: la trazabilidad es el único control que existe, porque no hay
-    // rol de administrador. Por eso siempre se ve quién hizo cada movimiento.
+    // Pie: quién hizo cada movimiento. Al administrador le dice de quién es
+    // cada préstamo de la lista; al resto, quién le registró la devolución.
     var pie = document.createElement("p");
     pie.className = "fila__pie";
     var reg = document.createElement("span");
@@ -465,9 +517,10 @@
 
     li.appendChild(cuerpo);
 
-    // Acción. Solo se crea para lo que sigue prestado: un contenedor vacío
-    // ocuparía una fila fantasma en la retícula.
-    if (!devuelto) {
+    // Acción. Solo se crea para lo que sigue prestado, y solo para el
+    // administrador: un contenedor vacío ocuparía una fila fantasma en la
+    // retícula.
+    if (!devuelto && esAdmin) {
       var accion = document.createElement("div");
       accion.className = "fila__accion";
       var boton = document.createElement("button");

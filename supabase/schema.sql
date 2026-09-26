@@ -33,7 +33,7 @@ create table if not exists public.prestamos (
   registrado_por         uuid  references auth.users (id) on delete set null,
   registrado_por_correo  text  not null,
 
-  -- Quien marco la devolucion (puede ser otra persona).
+  -- Quien marco la devolucion: siempre un administrador.
   devuelto_por_correo    text,
 
   creado_en        timestamptz not null default now(),
@@ -64,20 +64,75 @@ create index if not exists prestamos_activos_idx
   on public.prestamos (fecha_entrega desc)
   where devuelto_en is null;
 
+-- Un usuario normal solo lee los prestamos que registro: este indice atiende
+-- esa consulta sin recorrer la tabla completa.
+create index if not exists prestamos_registrado_por_idx
+  on public.prestamos (registrado_por, fecha_entrega desc);
+
+-- ---------------------------------------------------------------------------
+--  Administradores
+--  Quien esta en esta tabla ve todos los prestamos y es el unico que marca
+--  devoluciones. El resto de cuentas son usuarios normales: registran
+--  prestamos y solo ven los que registraron ellos mismos.
+--  Se guarda el correo y no el id para poder nombrar al administrador aunque
+--  su cuenta todavia no exista en Authentication > Users.
+-- ---------------------------------------------------------------------------
+create table if not exists public.administradores (
+  correo     text        primary key
+                         check (correo = lower(btrim(correo)) and correo like '%_@_%'),
+  creado_en  timestamptz not null default now()
+);
+
+comment on table public.administradores is 'Correos con rol de administrador. Se edita solo desde el SQL Editor.';
+
+-- RLS activo y sin politicas: desde el navegador nadie la lee ni la escribe,
+-- ni siquiera un administrador. Nadie puede nombrarse administrador a si mismo.
+alter table public.administradores enable row level security;
+revoke all on public.administradores from anon, authenticated;
+
+insert into public.administradores (correo)
+values ('jortiz@equitel.com.co')
+on conflict (correo) do nothing;
+
+-- Dice si la sesion actual es de un administrador. Corre con los permisos de
+-- su dueno (security definer) para poder leer administradores y auth.users,
+-- que la sesion no puede leer directamente. Compara contra el correo guardado
+-- en auth.users, no contra el que viaja en el token.
+create or replace function public.es_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.administradores a
+    join auth.users u on lower(u.email) = a.correo
+    where u.id = auth.uid()
+  );
+$$;
+
+revoke all on function public.es_admin() from public, anon;
+grant execute on function public.es_admin() to authenticated;
+
 -- ---------------------------------------------------------------------------
 --  Row Level Security
 --  Sin esto, la anon key que viaja en el navegador dejaria la tabla abierta
---  a cualquiera. Con RLS activo, solo las sesiones autenticadas entran.
+--  a cualquiera. Con RLS activo, solo las sesiones autenticadas entran, y
+--  cada una solo alcanza lo que su rol le permite.
 -- ---------------------------------------------------------------------------
 alter table public.prestamos enable row level security;
 
--- Cualquier persona autenticada ve todos los prestamos: el punto de la app
--- es que el equipo tenga una sola lista compartida.
+-- Cada usuario ve solo los prestamos que registro; el administrador ve todos.
+-- Los select envolventes hacen que auth.uid() y es_admin() se evaluen una vez
+-- por consulta y no una vez por fila.
 drop policy if exists "leer prestamos autenticado" on public.prestamos;
-create policy "leer prestamos autenticado"
+drop policy if exists "leer prestamos propios o admin" on public.prestamos;
+create policy "leer prestamos propios o admin"
   on public.prestamos for select
   to authenticated
-  using (true);
+  using (registrado_por = (select auth.uid()) or (select public.es_admin()));
 
 -- Al registrar, el autor queda amarrado a la sesion. El trigger de abajo ya
 -- lo fuerza; la politica lo exige de nuevo por si alguien quita el trigger.
@@ -87,15 +142,15 @@ create policy "registrar prestamo autenticado"
   to authenticated
   with check (registrado_por = auth.uid());
 
--- Cualquiera del equipo marca devoluciones: quien recibe el equipo de vuelta
--- no siempre es quien lo entrego. Lo que una actualizacion puede cambiar lo
--- limita el trigger de abajo, no esta politica.
+-- Solo el administrador marca devoluciones. Lo que una actualizacion puede
+-- cambiar lo limita el trigger de abajo, no esta politica.
 drop policy if exists "marcar devolucion autenticado" on public.prestamos;
-create policy "marcar devolucion autenticado"
+drop policy if exists "marcar devolucion admin" on public.prestamos;
+create policy "marcar devolucion admin"
   on public.prestamos for update
   to authenticated
-  using (true)
-  with check (true);
+  using ((select public.es_admin()))
+  with check ((select public.es_admin()));
 
 -- No se declara politica de DELETE a proposito: sin ella, RLS bloquea todo
 -- borrado desde el navegador. El historial de prestamos no se borra.
@@ -176,4 +231,7 @@ create trigger prestamos_proteger_registro_trg
 -- ============================================================================
 --  Listo. Siguiente paso: Authentication > Sign In / Providers > Email, y
 --  crear los usuarios del equipo en Authentication > Users > Add user.
+--  La cuenta del administrador se crea igual, con el correo de la tabla
+--  administradores. Para sumar otro administrador:
+--    insert into public.administradores (correo) values ('otro@equitel.com.co');
 -- ============================================================================
