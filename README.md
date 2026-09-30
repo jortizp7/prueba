@@ -6,7 +6,16 @@ Tres pantallas:
 
 1. **Entrar** — correo y contraseña. Sin sesión iniciada no se ve nada.
 2. **La lista** — los préstamos con su estado y un filtro: prestados / devueltos / todos.
-3. **Registrar** — formulario con equipo, a quién, fecha de entrega y nota opcional.
+3. **Registrar** — formulario con equipo, a quién, su correo (opcional), fecha de entrega,
+   plazo de devolución y nota opcional.
+
+Si el préstamo tiene correo, a esa persona le llegan dos correos automáticos, enviados con
+[Brevo](https://www.brevo.com):
+
+- **Confirmación**, apenas se registra: qué equipo recibió, cuándo y hasta cuándo lo puede
+  tener.
+- **Recordatorio**, si se pasa del plazo: sale a las 8:00 a. m. del día siguiente al
+  vencimiento y se repite cada 3 días hasta que el administrador marque la devolución.
 
 Dos roles:
 
@@ -31,7 +40,8 @@ index.html            Las tres pantallas
 assets/styles.css     Sistema visual, tema claro y oscuro
 assets/app.js         Sesión, lista, registro y devolución
 config.js             URL y anon key de tu proyecto de Supabase
-supabase/schema.sql   Tablas, índices, rol de administrador, políticas RLS y triggers
+supabase/schema.sql   Tablas, índices, rol de administrador, políticas RLS, triggers y correos
+supabase/llave-brevo.sql  Plantilla para guardar la llave de Brevo en Supabase Vault
 ```
 
 ---
@@ -108,7 +118,50 @@ La base aplica el cambio de inmediato; la pantalla lo refleja la próxima vez qu
 persona abra la app. Esa tabla no se puede
 leer ni modificar desde el navegador: nadie puede nombrarse administrador a sí mismo.
 
-### 5. Probarlo en local
+### 5. Conectar Brevo para los correos
+
+Sin este paso la app funciona igual; simplemente no envía correos.
+
+Se usan los **correos transaccionales** de Brevo (uno por evento, enviados por API), no
+las **campañas de marketing**, que son envíos masivos que se arman a mano.
+
+1. **Verifica el remitente.** En Brevo, entra a **Senders, Domains & Dedicated IPs →
+   Senders → Add a sender** y agrega `jortiz@equitel.com.co`. Brevo manda un código a
+   ese buzón para confirmarlo. Sin esto Brevo rechaza los envíos.
+2. **Autentica el dominio (recomendado).** En **Domains**, agrega `equitel.com.co` y pide
+   a quien administre el DNS de la empresa que publique los registros que muestra Brevo.
+   Sin esto los correos pueden llegar a spam.
+3. **Crea la llave de API.** En el menú de tu cuenta, **SMTP & API → API Keys → Generate
+   a new API key**. Empieza por `xkeysib-`. Cópiala: Brevo solo la muestra una vez.
+4. **Guárdala en Supabase.** En **SQL Editor**, pega
+   [supabase/llave-brevo.sql](supabase/llave-brevo.sql), reemplaza `PEGA_AQUI_TU_LLAVE`
+   por la llave y pulsa **Run**. Queda cifrada en Supabase Vault. **No** la escribas en
+   ningún archivo del repositorio ni en `config.js`.
+5. **Prueba.** Registra un préstamo con tu propio correo. Debe llegarte la confirmación
+   en menos de un minuto.
+
+El remitente y la frecuencia de los recordatorios están en la tabla `ajustes_correo`:
+
+```sql
+update public.ajustes_correo set remitente_correo = 'prestamos@equitel.com.co';
+update public.ajustes_correo set dias_entre_recordatorios = 7;
+```
+
+Si un correo no llega, esta consulta muestra lo último que se envió y qué respondió Brevo
+(la respuesta se guarda solo unas horas):
+
+```sql
+select a.tipo, a.para, a.enviado_en, r.status_code, r.content
+from public.avisos_correo a
+left join net._http_response r on r.id = a.solicitud_id
+order by a.enviado_en desc
+limit 10;
+```
+
+Un `status_code` 201 significa que Brevo lo aceptó. Si fue así y no llegó, revisa
+**Transactional → Logs** en Brevo y la carpeta de spam.
+
+### 6. Probarlo en local
 
 Abrir `index.html` con doble clic **no funciona**: el navegador bloquea el inicio de
 sesión en páginas abiertas desde el disco. Hace falta un servidor estático:
@@ -126,7 +179,7 @@ Luego abre `http://localhost:5173`.
 Si no tienes ninguno de los dos instalados, sáltate este paso: al desplegarlo en Vercel
 queda accesible igual.
 
-### 6. Publicarlo
+### 7. Publicarlo
 
 Cualquier hosting estático sirve. Con Vercel, apuntando al repositorio, no hay nada que
 configurar: no hay build, y el sitio se actualiza en cada push.
@@ -179,6 +232,17 @@ saber que `Taladro Bosch`, `taladro bosch` y `Taladro` se registran como tres co
 distintas: si más adelante hace falta un historial confiable por equipo, el siguiente
 paso es un catálogo del que se elija en vez de escribir.
 
-**No hay fecha de devolución esperada,** así que la app no tiene concepto de préstamo
-vencido ni alertas. Muestra hace cuántos días salió cada equipo, que es lo que se puede
-afirmar con los datos que hay.
+**Un préstamo vence al día siguiente de su plazo.** Si el plazo es el 3 de octubre, ese día
+todavía está a tiempo; desde el 4 aparece como *Vencido* y sale el recordatorio. Los
+préstamos registrados antes de que existiera el plazo no tienen fecha límite: nunca se
+marcan como vencidos ni reciben recordatorios.
+
+**Los correos salen de la base, no del navegador.** La llave de Brevo es secreta: si
+estuviera en la página, cualquiera podría leerla y mandar correos a tu nombre. Por eso la
+confirmación la envía un trigger de Supabase al registrar, y los recordatorios una tarea
+diaria de `pg_cron`. Nadie puede usar esas funciones desde el navegador, y un fallo con
+Brevo nunca impide registrar un préstamo.
+
+**El plazo y el correo no se editan.** Igual que el equipo y la fecha de entrega, quedan
+fijos al registrar. Si están mal, lo correcto hoy es marcar la devolución y registrar el
+préstamo de nuevo.

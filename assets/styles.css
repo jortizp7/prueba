@@ -522,6 +522,8 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 .atajos { display: flex; flex-wrap: wrap; gap: 8px; }
 
+.campo__ayuda { font-size: 13px; color: var(--muted); }
+
 /* --------------------------------------------------------------------------
    6. PANTALLA 2 · LA LISTA
    -------------------------------------------------------------------------- */
@@ -610,6 +612,12 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 }
 .etiqueta--prestado { color: var(--surface); background: var(--estado); }
 .etiqueta--devuelto { color: var(--muted); background: var(--estado-soft); }
+/* Vencido usa el rojo de alerta (danger), no el de marca: avisa, no se toca.
+   Lo dice además la palabra escrita, así que no depende solo del color. */
+.etiqueta--vencido  { color: var(--danger); background: var(--danger-soft); }
+
+.fila__plazo { color: var(--muted); }
+.fila__plazo--vencido { color: var(--danger); font-weight: 600; }
 
 .fila__nota {
   font-size: 14px;

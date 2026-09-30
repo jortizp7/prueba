@@ -107,6 +107,22 @@
     return "Prestado hace " + dias + " días";
   }
 
+  // Un préstamo vence al día siguiente de su fecha límite: es el mismo
+  // criterio con que la base manda los recordatorios (schema.sql).
+  function estaVencido(p) {
+    return !p.devuelto_en && !!p.fecha_limite && diasEntre(p.fecha_limite, hoyBogota()) > 0;
+  }
+
+  function frasePlazo(fechaLimite) {
+    var dias = diasEntre(hoyBogota(), fechaLimite);
+    if (dias < 0) {
+      return "Venció el " + fechaCorta(fechaLimite) + (dias === -1 ? ", hace 1 día" : ", hace " + (-dias) + " días");
+    }
+    if (dias === 0) return "Vence hoy";
+    if (dias === 1) return "Vence mañana";
+    return "Devolver a más tardar el " + fechaCorta(fechaLimite);
+  }
+
   function fraseDevuelto(devueltoEn) {
     var dias = diasEntre(isoDeInstante(devueltoEn), hoyBogota());
     if (dias === 0) return "Devuelto hoy";
@@ -145,7 +161,10 @@
       return "Tu sesión no tiene permiso para guardar esto. Sal, vuelve a entrar e inténtalo de nuevo.";
     }
     if (codigo === "23514") {
-      return "Revisa los datos: la fecha de entrega no puede ser futura, y el equipo y la persona no pueden quedar vacíos.";
+      return "Revisa los datos: la fecha de entrega no puede ser futura, el plazo no puede ser anterior a la entrega, el correo tiene que ser válido, y el equipo y la persona no pueden quedar vacíos.";
+    }
+    if (codigo === "PGRST204" || codigo === "42703") {
+      return "Falta actualizar la base en Supabase: ejecuta de nuevo supabase/schema.sql en el editor SQL.";
     }
     if (codigo === "42P01") {
       return "Falta crear la tabla en Supabase. Ejecuta el archivo supabase/schema.sql en el editor SQL.";
@@ -480,18 +499,31 @@
     var nombre = document.createElement("strong");
     nombre.textContent = p.prestado_a;
     persona.appendChild(nombre);
+    if (p.correo_prestado) {
+      persona.appendChild(document.createTextNode(" · " + p.correo_prestado));
+    }
     cuerpo.appendChild(persona);
 
     // Línea 3: estado, en tres canales — glifo, etiqueta escrita y frase.
+    // Un vencido sigue prestado: cambia la etiqueta y el plazo lo explica.
+    var vencido = estaVencido(p);
     var estado = document.createElement("p");
     estado.className = "fila__estado";
     var etiqueta = document.createElement("span");
-    etiqueta.className = "etiqueta " + (devuelto ? "etiqueta--devuelto" : "etiqueta--prestado");
-    etiqueta.textContent = devuelto ? "Devuelto" : "Prestado";
+    etiqueta.className = "etiqueta " +
+      (devuelto ? "etiqueta--devuelto" : vencido ? "etiqueta--vencido" : "etiqueta--prestado");
+    etiqueta.textContent = devuelto ? "Devuelto" : vencido ? "Vencido" : "Prestado";
     estado.appendChild(etiqueta);
     var frase = document.createElement("span");
     frase.textContent = devuelto ? fraseDevuelto(p.devuelto_en) : frasePrestado(p.fecha_entrega);
     estado.appendChild(frase);
+    if (!devuelto && p.fecha_limite) {
+      var plazo = document.createElement("span");
+      plazo.className = "fila__plazo" + (vencido ? " fila__plazo--vencido" : "");
+      plazo.textContent = frasePlazo(p.fecha_limite);
+      plazo.title = "Devolver a más tardar el " + fechaLarga(p.fecha_limite);
+      estado.appendChild(plazo);
+    }
     cuerpo.appendChild(estado);
 
     if (p.nota) {
@@ -586,12 +618,35 @@
   // ------------------------------------------------------------------------
   // PANTALLA 3 · REGISTRAR
   // ------------------------------------------------------------------------
-  $("fecha").value = hoyBogota();
+  var PLAZO_POR_DEFECTO = 7;
+  var CORREO_VALIDO = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+  // El plazo no puede ser anterior a la entrega; el calendario lo respeta.
+  function ajustarMinimoPlazo() {
+    $("plazo").min = $("fecha").value || "";
+  }
+
+  function fechasPorDefecto() {
+    $("fecha").value = hoyBogota();
+    $("plazo").value = isoMasDias(hoyBogota(), PLAZO_POR_DEFECTO);
+    ajustarMinimoPlazo();
+  }
+
+  fechasPorDefecto();
   $("fecha").max = hoyBogota();
+  $("fecha").addEventListener("change", ajustarMinimoPlazo);
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-dias]"), function (chip) {
     chip.addEventListener("click", function () {
       $("fecha").value = isoMasDias(hoyBogota(), parseInt(chip.getAttribute("data-dias"), 10));
+      ajustarMinimoPlazo();
+    });
+  });
+
+  // Los atajos de plazo cuentan desde la fecha de entrega, no desde hoy.
+  Array.prototype.forEach.call(document.querySelectorAll("[data-plazo]"), function (chip) {
+    chip.addEventListener("click", function () {
+      $("plazo").value = isoMasDias($("fecha").value || hoyBogota(), parseInt(chip.getAttribute("data-plazo"), 10));
     });
   });
 
@@ -601,14 +656,25 @@
 
     var equipo = $("equipo").value.trim();
     var persona = $("persona").value.trim();
+    var correoPersona = $("correo-persona").value.trim().toLowerCase();
     var fecha = $("fecha").value;
+    var plazo = $("plazo").value;
     var nota = $("nota").value.trim();
 
     if (!equipo) { faltaCampo("equipo", "Escribe qué equipo estás entregando."); return; }
     if (!persona) { faltaCampo("persona", "Escribe a quién le entregas el equipo."); return; }
+    if (correoPersona && !CORREO_VALIDO.test(correoPersona)) {
+      faltaCampo("correo-persona", "Revisa el correo: debe verse como nombre@empresa.com. Si no lo sabes, déjalo vacío.");
+      return;
+    }
     if (!fecha) { faltaCampo("fecha", "Indica la fecha en que se entregó el equipo."); return; }
     if (diasEntre(hoyBogota(), fecha) > 0) {
       faltaCampo("fecha", "La fecha de entrega no puede ser futura. Si el equipo sale hoy, usa Hoy.");
+      return;
+    }
+    if (!plazo) { faltaCampo("plazo", "Indica hasta cuándo puede tener el equipo."); return; }
+    if (diasEntre(fecha, plazo) < 0) {
+      faltaCampo("plazo", "El plazo no puede ser anterior a la fecha de entrega.");
       return;
     }
 
@@ -620,7 +686,9 @@
       .insert({
         equipo: equipo,
         prestado_a: persona,
+        correo_prestado: correoPersona || null,
         fecha_entrega: fecha,
+        fecha_limite: plazo,
         nota: nota || null,
         registrado_por: usuario.id,
         registrado_por_correo: usuario.email
@@ -633,14 +701,15 @@
         }
         if (res.data && res.data.length) prestamos.unshift(res.data[0]);
         $("form-prestamo").reset();
-        $("fecha").value = hoyBogota();
+        fechasPorDefecto();
         filtro = "prestados";
         Array.prototype.forEach.call(document.querySelectorAll("[data-filtro]"), function (c) {
           c.setAttribute("aria-pressed", c.getAttribute("data-filtro") === "prestados" ? "true" : "false");
         });
         pintarLista();
         mostrarVista("lista");
-        toast(equipo + " quedó a nombre de " + persona + ".");
+        toast(equipo + " quedó a nombre de " + persona + "." +
+          (correoPersona ? " La confirmación va para " + correoPersona + "." : ""));
       })
       .catch(function (err) { mostrarAviso("prestamo-error", mensajeDatos(err)); })
       .finally(function () {
