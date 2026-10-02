@@ -267,6 +267,8 @@ create trigger prestamos_proteger_registro_trg
 --    recibe el equipo.
 --  - Recordatorio: cada manana, a quien tenga un prestamo vencido. Se repite
 --    cada pocos dias (ajustes_correo) hasta que se marque la devolucion.
+--  - Devolucion: cuando el administrador marca la devolucion, le llega a
+--    quien tenia el equipo.
 --  Los correos salen de la base y no del navegador, porque la llave de Brevo
 --  es secreta: vive en Supabase Vault con el nombre brevo_api_key. Mientras
 --  esa llave no exista, la app funciona igual y simplemente no se envia nada.
@@ -303,11 +305,17 @@ revoke all on public.ajustes_correo from anon, authenticated;
 create table if not exists public.avisos_correo (
   id            bigint       generated always as identity primary key,
   prestamo_id   uuid         not null references public.prestamos (id) on delete cascade,
-  tipo          text         not null check (tipo in ('confirmacion', 'vencido')),
+  tipo          text         not null,
   para          text         not null,
   solicitud_id  bigint,
   enviado_en    timestamptz  not null default now()
 );
+
+-- El tipo va como restriccion aparte para poder sumar tipos nuevos en una
+-- base que ya tenia la tabla.
+alter table public.avisos_correo drop constraint if exists avisos_correo_tipo_check;
+alter table public.avisos_correo add constraint avisos_correo_tipo_check
+  check (tipo in ('confirmacion', 'vencido', 'devolucion'));
 
 create index if not exists avisos_correo_prestamo_idx
   on public.avisos_correo (prestamo_id, tipo, enviado_en desc);
@@ -498,6 +506,66 @@ create trigger prestamos_enviar_confirmacion_trg
   for each row execute function public.prestamos_enviar_confirmacion();
 
 -- ---------------------------------------------------------------------------
+--  Aviso de devolucion. Sale una sola vez: el trigger solo se dispara cuando
+--  devuelto_en pasa de vacio a tener valor, y una devolucion ya registrada no
+--  se puede reescribir. Las respuestas le llegan a quien marco la devolucion.
+-- ---------------------------------------------------------------------------
+create or replace function public.prestamos_enviar_devolucion()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  solicitud bigint;
+begin
+  if new.correo_prestado is null then
+    return null;
+  end if;
+
+  begin
+    solicitud := public.enviar_correo_brevo(
+      new.correo_prestado,
+      new.prestado_a,
+      'Devolución registrada: ' || new.equipo,
+      public.correo_html(
+        'Recibimos tu equipo',
+        '<p style="margin:0 0 14px;">Hola ' || public.html_escapar(new.prestado_a) || ', ¿cómo estás?</p>'
+        || '<p style="margin:0 0 14px;">Te confirmamos que quedó registrada la devolución de este equipo:</p>'
+        || '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px;font-size:15px;">'
+        || public.correo_detalle('Equipo', public.html_escapar(new.equipo))
+        || public.correo_detalle('Entregado el', public.fecha_larga_es(new.fecha_entrega))
+        || public.correo_detalle('Devuelto el', public.fecha_larga_es((new.devuelto_en at time zone 'America/Bogota')::date))
+        || '</table>'
+        || '<p style="margin:0 0 14px;">¡Gracias por devolverlo! Si algo no coincide, responde a este correo.</p>'
+        || case when new.devuelto_por_correo is null then ''
+                else '<p style="margin:0;color:#6B7075;font-size:13px;">Recibido por '
+                     || public.html_escapar(new.devuelto_por_correo) || '</p>' end
+      ),
+      new.devuelto_por_correo
+    );
+
+    if solicitud is not null then
+      insert into public.avisos_correo (prestamo_id, tipo, para, solicitud_id)
+      values (new.id, 'devolucion', new.correo_prestado, solicitud);
+    end if;
+  exception when others then
+    -- Un problema con el correo nunca debe impedir registrar la devolucion.
+    raise warning 'No se pudo programar el aviso de devolucion del prestamo %: %', new.id, sqlerrm;
+  end;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists prestamos_enviar_devolucion_trg on public.prestamos;
+create trigger prestamos_enviar_devolucion_trg
+  after update of devuelto_en on public.prestamos
+  for each row
+  when (old.devuelto_en is null and new.devuelto_en is not null)
+  execute function public.prestamos_enviar_devolucion();
+
+-- ---------------------------------------------------------------------------
 --  Recordatorios de vencidos. Un prestamo vence al dia siguiente de su
 --  fecha limite. Las respuestas le llegan al remitente, que es quien
 --  administra las devoluciones. Devuelve cuantos correos programo.
@@ -581,6 +649,7 @@ revoke all on function public.correo_detalle(text, text)                       f
 revoke all on function public.correo_html(text, text)                          from public, anon, authenticated;
 revoke all on function public.enviar_correo_brevo(text, text, text, text, text) from public, anon, authenticated;
 revoke all on function public.prestamos_enviar_confirmacion()                  from public, anon, authenticated;
+revoke all on function public.prestamos_enviar_devolucion()                    from public, anon, authenticated;
 revoke all on function public.enviar_recordatorios_vencidos()                  from public, anon, authenticated;
 
 -- Todos los dias a las 8:00 a. m. de Colombia (13:00 UTC). Volver a ejecutar

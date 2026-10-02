@@ -9,13 +9,15 @@ Tres pantallas:
 3. **Registrar** — formulario con equipo, a quién, su correo (opcional), fecha de entrega,
    plazo de devolución y nota opcional.
 
-Si el préstamo tiene correo, a esa persona le llegan dos correos automáticos, enviados con
+Si el préstamo tiene correo, a esa persona le llegan correos automáticos, enviados con
 [Brevo](https://www.brevo.com):
 
 - **Confirmación**, apenas se registra: qué equipo recibió, cuándo y hasta cuándo lo puede
   tener.
 - **Recordatorio**, si se pasa del plazo: sale a las 8:00 a. m. del día siguiente al
   vencimiento y se repite cada 3 días hasta que el administrador marque la devolución.
+- **Devolución**, cuando el administrador la marca: qué equipo devolvió y cuándo. Sale una
+  sola vez por préstamo.
 
 Dos roles:
 
