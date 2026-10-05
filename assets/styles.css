@@ -414,7 +414,34 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   max-width: 42ch;
 }
 
-#form-entrar { display: flex; flex-direction: column; gap: 18px; }
+.entrar__form { display: flex; flex-direction: column; gap: 18px; }
+
+/* Acción secundaria con forma de enlace: se distingue del botón rojo, pero
+   conserva 44px de alto para tocarla con el dedo. */
+.enlace {
+  appearance: none;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  padding: 0 4px;
+  margin: -6px auto 0;
+  cursor: pointer;
+}
+.enlace:hover { color: var(--accent); }
+
+/* Aviso de algo que salió bien: mismo panel que el error, en gris. Lleva
+   las dos clases para ganarle al .aviso rojo, que está más abajo. */
+.aviso.aviso--ok {
+  background: var(--estado-soft);
+  border-left-color: var(--estado);
+  color: var(--ink);
+}
 
 /* --------------------------------------------------------------------------
    5. ARMAZÓN DE LA APP

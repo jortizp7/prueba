@@ -133,6 +133,24 @@ La base aplica el cambio de inmediato; la pantalla lo refleja la próxima vez qu
 persona abra la app. Esa tabla no se puede
 leer ni modificar desde el navegador: nadie puede nombrarse administrador a sí mismo.
 
+### 4b. Recuperar contraseña
+
+En la pantalla de entrar está **¿Olvidaste tu contraseña?**: la persona escribe su correo,
+le llega un enlace y, al abrirlo, la app le pide una contraseña nueva antes de dejarla
+entrar. Lo resuelve Supabase Auth; la app solo necesita estos ajustes:
+
+1. **Authentication → URL Configuration**: en **Site URL** va
+   `https://prestamos-de-equipos.vercel.app`, y en **Redirect URLs** se agrega
+   `https://prestamos-de-equipos.vercel.app/**`. Sin esto, el enlace del correo lleva a
+   otra dirección.
+2. **Authentication → Emails → SMTP Settings**: el servicio de correo que trae Supabase
+   solo envía a los miembros del equipo del proyecto y muy pocos por hora. Para que le
+   llegue a cualquiera hay que activar **Custom SMTP** con Brevo: host
+   `smtp-relay.brevo.com`, puerto `587`, usuario y clave SMTP de **Brevo → SMTP y API →
+   SMTP** (la clave empieza por `xsmtpsib-`), remitente `jortiz@equitel.com.co`.
+3. Opcional: **Authentication → Emails → Templates → Reset Password**, para dejar el
+   correo en español.
+
 ### 5. Conectar Brevo para los correos
 
 Sin este paso la app funciona igual; simplemente no envía correos.

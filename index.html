@@ -24,10 +24,11 @@
       <img class="logo" src="assets/logo.webp" alt="Cumandes" width="800" height="145">
       <span class="lockup__app">Gestión de equipos</span>
     </p>
-    <h1 id="entrar-titulo" class="entrar__titulo">Entrar</h1>
-    <p class="entrar__ayuda">Usa el correo y la contraseña que te dieron para esta herramienta.</p>
+    <h1 id="entrar-titulo" class="entrar__titulo" tabindex="-1">Entrar</h1>
+    <p class="entrar__ayuda" id="entrar-ayuda">Usa el correo y la contraseña que te dieron para esta herramienta.</p>
 
-    <form id="form-entrar" novalidate>
+    <!-- Entrar -->
+    <form id="form-entrar" class="entrar__form" novalidate>
       <div class="campo">
         <label class="rotulo" for="correo">Correo</label>
         <input class="entrada" type="email" id="correo" name="correo"
@@ -41,13 +42,56 @@
           <input class="entrada" type="password" id="clave" name="clave"
                  autocomplete="current-password" enterkeyhint="go" required>
           <button class="boton boton--fantasma boton--ver" type="button"
-                  id="ver-clave" aria-pressed="false">Ver</button>
+                  data-ver="clave" aria-pressed="false">Ver</button>
         </div>
       </div>
 
       <p id="entrar-error" class="aviso aviso--error" role="alert" hidden></p>
+      <p id="entrar-ok" class="aviso aviso--ok" role="status" hidden></p>
 
       <button class="boton boton--primario boton--ancho" type="submit" id="btn-entrar">Entrar</button>
+      <button class="enlace" type="button" id="btn-olvide">¿Olvidaste tu contraseña?</button>
+    </form>
+
+    <!-- Pedir el enlace para recuperar la contraseña -->
+    <form id="form-olvide" class="entrar__form" novalidate hidden>
+      <div class="campo">
+        <label class="rotulo" for="correo-olvide">Correo</label>
+        <input class="entrada" type="email" id="correo-olvide" name="correo-olvide"
+               autocomplete="username" inputmode="email" enterkeyhint="send"
+               required placeholder="nombre@empresa.com">
+      </div>
+
+      <p id="olvide-error" class="aviso aviso--error" role="alert" hidden></p>
+      <p id="olvide-ok" class="aviso aviso--ok" role="status" hidden></p>
+
+      <button class="boton boton--primario boton--ancho" type="submit" id="btn-enviar-enlace">Enviar enlace</button>
+      <button class="enlace" type="button" data-volver-entrar>Volver a entrar</button>
+    </form>
+
+    <!-- Crear la contraseña nueva, al llegar desde el enlace del correo -->
+    <form id="form-nueva-clave" class="entrar__form" novalidate hidden>
+      <div class="campo">
+        <label class="rotulo" for="clave-nueva">Contraseña nueva</label>
+        <div class="campo__clave">
+          <input class="entrada" type="password" id="clave-nueva" name="clave-nueva"
+                 autocomplete="new-password" enterkeyhint="next" minlength="8" required
+                 aria-describedby="clave-nueva-ayuda">
+          <button class="boton boton--fantasma boton--ver" type="button"
+                  data-ver="clave-nueva" aria-pressed="false">Ver</button>
+        </div>
+        <p id="clave-nueva-ayuda" class="campo__ayuda">Mínimo 8 caracteres.</p>
+      </div>
+
+      <div class="campo">
+        <label class="rotulo" for="clave-repetir">Repite la contraseña</label>
+        <input class="entrada" type="password" id="clave-repetir" name="clave-repetir"
+               autocomplete="new-password" enterkeyhint="go" minlength="8" required>
+      </div>
+
+      <p id="nueva-error" class="aviso aviso--error" role="alert" hidden></p>
+
+      <button class="boton boton--primario boton--ancho" type="submit" id="btn-guardar-clave">Guardar contraseña</button>
     </form>
   </div>
 </main>

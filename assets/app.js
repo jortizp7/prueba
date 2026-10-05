@@ -21,6 +21,12 @@
   var pantallaEntrar = $("pantalla-entrar");
   var app = $("app");
 
+  // Enlaces que llegan desde el correo de "olvidé mi contraseña". Se leen
+  // antes de crear el cliente, porque él limpia la dirección al procesarlos.
+  var hashInicial = location.hash || "";
+  var modoRecuperacion = hashInicial.indexOf("type=recovery") !== -1;
+  var enlaceVencido = /error_code=otp_expired|error=access_denied/.test(hashInicial);
+
   if (!window.supabase || !CONFIG.url || !CONFIG.anonKey ||
       CONFIG.url.indexOf("TU-PROYECTO") !== -1 || CONFIG.anonKey.indexOf("TU_ANON_KEY") !== -1) {
     mostrarErrorEntrar(
@@ -327,14 +333,153 @@
   // ------------------------------------------------------------------------
   // ENTRAR
   // ------------------------------------------------------------------------
-  $("ver-clave").addEventListener("click", function () {
-    var campo = $("clave");
-    var visible = campo.type === "text";
-    campo.type = visible ? "password" : "text";
-    this.textContent = visible ? "Ver" : "Ocultar";
-    this.setAttribute("aria-pressed", visible ? "false" : "true");
-    campo.focus();
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ver]"), function (b) {
+    b.addEventListener("click", function () {
+      var campo = $(b.getAttribute("data-ver"));
+      var visible = campo.type === "text";
+      campo.type = visible ? "password" : "text";
+      b.textContent = visible ? "Ver" : "Ocultar";
+      b.setAttribute("aria-pressed", visible ? "false" : "true");
+      campo.focus();
+    });
   });
+
+  // La caja de entrar tiene tres modos: entrar, pedir el enlace para
+  // recuperar la contraseña, y crear la contraseña nueva.
+  var MODOS_ENTRAR = {
+    entrar: ["Entrar", "Usa el correo y la contraseña que te dieron para esta herramienta."],
+    olvide: ["Recuperar contraseña", "Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva."],
+    nueva: ["Crea una contraseña nueva", "Elige una contraseña que no hayas usado antes en esta herramienta."]
+  };
+
+  function modoEntrar(modo) {
+    $("form-entrar").hidden = modo !== "entrar";
+    $("form-olvide").hidden = modo !== "olvide";
+    $("form-nueva-clave").hidden = modo !== "nueva";
+    $("entrar-titulo").textContent = MODOS_ENTRAR[modo][0];
+    $("entrar-ayuda").textContent = MODOS_ENTRAR[modo][1];
+    ["entrar-error", "entrar-ok", "olvide-error", "olvide-ok", "nueva-error"].forEach(limpiarAviso);
+  }
+
+  $("btn-olvide").addEventListener("click", function () {
+    $("correo-olvide").value = $("correo").value.trim();
+    $("btn-enviar-enlace").textContent = "Enviar enlace";
+    modoEntrar("olvide");
+    $("correo-olvide").focus();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-volver-entrar]"), function (b) {
+    b.addEventListener("click", function () {
+      if ($("correo-olvide").value.trim()) $("correo").value = $("correo-olvide").value.trim();
+      modoEntrar("entrar");
+      $("correo").focus();
+    });
+  });
+
+  function mensajeRecuperar(error) {
+    var m = (error && error.message ? error.message : "").toLowerCase();
+    var codigo = error && error.code ? String(error.code) : "";
+    if (codigo === "over_email_send_rate_limit" || m.indexOf("rate limit") !== -1 ||
+        m.indexOf("security purposes") !== -1 || m.indexOf("too many") !== -1) {
+      return "Ya se pidió un enlace hace muy poco. Espera un minuto y vuelve a intentarlo.";
+    }
+    if (codigo === "same_password" || m.indexOf("different from the old") !== -1) {
+      return "La contraseña nueva tiene que ser distinta de la anterior.";
+    }
+    if (codigo === "weak_password" || m.indexOf("password should") !== -1) {
+      return "Esa contraseña es muy débil. Usa al menos 8 caracteres, mezclando letras y números.";
+    }
+    if (m.indexOf("session") !== -1 || m.indexOf("expired") !== -1) {
+      return "El enlace venció. Pide uno nuevo con «¿Olvidaste tu contraseña?».";
+    }
+    if (esDeRed(m)) return "No pudimos conectar. Revisa tu conexión e inténtalo otra vez.";
+    return "No pudimos completar el cambio. Inténtalo otra vez en unos minutos.";
+  }
+
+  // Supabase responde igual exista o no la cuenta: así nadie puede usar este
+  // formulario para averiguar qué correos están registrados.
+  $("form-olvide").addEventListener("submit", function (e) {
+    e.preventDefault();
+    limpiarAviso("olvide-error");
+    limpiarAviso("olvide-ok");
+    var correo = $("correo-olvide").value.trim();
+    if (!CORREO_VALIDO.test(correo)) {
+      mostrarAviso("olvide-error", "Escribe tu correo completo, por ejemplo nombre@empresa.com.");
+      $("correo-olvide").focus();
+      return;
+    }
+    var boton = $("btn-enviar-enlace");
+    ocupado(boton, "Enviando…");
+    cliente.auth.resetPasswordForEmail(correo, { redirectTo: location.origin + location.pathname })
+      .then(function (res) {
+        if (res.error) {
+          mostrarAviso("olvide-error", mensajeRecuperar(res.error));
+          return;
+        }
+        mostrarAviso("olvide-ok", "Si ese correo tiene una cuenta, en unos minutos te llega un enlace para crear una contraseña nueva. Revisa también la carpeta de spam. El enlace sirve una sola vez.");
+        boton.dataset.textoOriginal = "Enviar de nuevo";
+      })
+      .catch(function (err) { mostrarAviso("olvide-error", mensajeRecuperar(err)); })
+      .finally(function () { libre(boton); });
+  });
+
+  function mostrarNuevaClave() {
+    if (!app.hidden) {
+      app.hidden = true;
+      usuario = null;
+    }
+    pantallaEntrar.hidden = false;
+    $("clave-nueva").value = "";
+    $("clave-repetir").value = "";
+    modoEntrar("nueva");
+    $("clave-nueva").focus();
+  }
+
+  $("form-nueva-clave").addEventListener("submit", function (e) {
+    e.preventDefault();
+    limpiarAviso("nueva-error");
+    var clave = $("clave-nueva").value;
+    if (clave.length < 8) {
+      mostrarAviso("nueva-error", "La contraseña debe tener al menos 8 caracteres.");
+      $("clave-nueva").focus();
+      return;
+    }
+    if (clave !== $("clave-repetir").value) {
+      mostrarAviso("nueva-error", "Las dos contraseñas no coinciden. Escríbelas otra vez.");
+      $("clave-repetir").focus();
+      return;
+    }
+    var boton = $("btn-guardar-clave");
+    ocupado(boton, "Guardando…");
+    cliente.auth.updateUser({ password: clave })
+      .then(function (res) {
+        if (res.error) {
+          mostrarAviso("nueva-error", mensajeRecuperar(res.error));
+          return;
+        }
+        modoRecuperacion = false;
+        $("clave-nueva").value = "";
+        $("clave-repetir").value = "";
+        modoEntrar("entrar");
+        // El enlace ya dejó la sesión abierta: se entra directo a la app.
+        return cliente.auth.getSession().then(function (r) {
+          var sesion = r && r.data ? r.data.session : null;
+          if (sesion && sesion.user) {
+            entrarAlApp(sesion);
+            toast("Tu contraseña quedó actualizada.");
+          } else {
+            mostrarAviso("entrar-ok", "Tu contraseña quedó actualizada. Ya puedes entrar con ella.");
+          }
+        });
+      })
+      .catch(function (err) { mostrarAviso("nueva-error", mensajeRecuperar(err)); })
+      .finally(function () { libre(boton); });
+  });
+
+  if (enlaceVencido) {
+    mostrarErrorEntrar("El enlace para cambiar la contraseña venció o ya se usó. Pide uno nuevo con «¿Olvidaste tu contraseña?».");
+    try { history.replaceState(null, "", location.pathname); } catch (e) { /* no es crítico */ }
+  }
 
   $("form-entrar").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -424,6 +569,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("dialog[open]"), function (d) { d.close(); });
     app.hidden = true;
     pantallaEntrar.hidden = false;
+    modoEntrar("entrar");
     ocultarToast();
     pintarTodo();
   }
@@ -434,6 +580,13 @@
   // propio callback puede quedar esperando el candado interno de la sesión.
   cliente.auth.onAuthStateChange(function (evento, sesion) {
     setTimeout(function () {
+      // Quien llega desde el enlace del correo tiene sesión, pero primero
+      // tiene que crear su contraseña nueva; no entra a la app todavía.
+      if (evento === "PASSWORD_RECOVERY") modoRecuperacion = true;
+      if (modoRecuperacion && sesion && sesion.user) {
+        mostrarNuevaClave();
+        return;
+      }
       if (sesion && sesion.user) {
         if (!usuario) entrarAlApp(sesion);
         else usuario = sesion.user;
