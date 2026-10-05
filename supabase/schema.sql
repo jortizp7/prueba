@@ -153,8 +153,6 @@ grant execute on function public.es_admin() to authenticated;
 --  elegir que prestar; solo el administrador lo edita. Un equipo no se borra:
 --  se da de baja (activo = false) y su historial sigue intacto.
 -- ---------------------------------------------------------------------------
-create sequence if not exists public.equipos_codigo_seq;
-
 create table if not exists public.equipos (
   id         uuid        primary key default gen_random_uuid(),
   codigo     text        not null unique check (length(codigo) between 1 and 40),
@@ -167,13 +165,15 @@ create table if not exists public.equipos (
 comment on table public.equipos is 'Catalogo de equipos que se pueden prestar.';
 
 -- El codigo se escribe en mayusculas y sin espacios sobrantes. Si no se da,
--- se toma el siguiente libre: si alguien ya uso EQ-005 a mano, se lo salta.
+-- se toma el numero siguiente al EQ-### mas alto: sin huecos aunque un
+-- intento falle, y respetando los que se pusieron a mano.
 create or replace function public.equipos_antes_de_guardar()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 declare
+  numero    integer;
   candidato text;
 begin
   new.nombre    := btrim(new.nombre);
@@ -185,9 +185,13 @@ begin
     new.creado_en := old.creado_en;
     new.codigo    := coalesce(new.codigo, old.codigo);
   elsif new.codigo is null then
+    select coalesce(max(substring(e.codigo from '^EQ-([0-9]{1,9})$')::integer), 0) + 1
+      into numero
+    from public.equipos e;
     loop
-      candidato := 'EQ-' || lpad(nextval('public.equipos_codigo_seq')::text, 3, '0');
+      candidato := 'EQ-' || lpad(numero::text, 3, '0');
       exit when not exists (select 1 from public.equipos e where e.codigo = candidato);
+      numero := numero + 1;
     end loop;
     new.codigo := candidato;
   end if;
@@ -200,9 +204,6 @@ drop trigger if exists equipos_antes_de_guardar_trg on public.equipos;
 create trigger equipos_antes_de_guardar_trg
   before insert or update on public.equipos
   for each row execute function public.equipos_antes_de_guardar();
-
--- El trigger corre con la sesion del administrador: necesita la secuencia.
-grant usage, select on sequence public.equipos_codigo_seq to authenticated;
 
 alter table public.equipos enable row level security;
 revoke all on public.equipos from anon;

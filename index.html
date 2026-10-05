@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Préstamos de equipos</title>
-<meta name="description" content="Registro de equipos prestados: qué se prestó, a quién, desde cuándo y cuándo lo devolvieron.">
+<title>Gestión de equipos</title>
+<meta name="description" content="Control de préstamos y devoluciones de equipos: qué se prestó, a quién, hasta cuándo y cuándo volvió.">
 <meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,14 +16,13 @@
 <body>
 
 <!-- ====================================================================== -->
-<!--  PANTALLA 1 · ENTRAR                                                    -->
-<!--  Mientras no haya sesión, esto es lo único que existe en la página.     -->
+<!--  ENTRAR · mientras no haya sesión, esto es lo único que existe.         -->
 <!-- ====================================================================== -->
 <main id="pantalla-entrar" class="entrar" aria-labelledby="entrar-titulo">
   <div class="entrar__caja">
     <p class="lockup">
       <img class="logo" src="assets/logo.webp" alt="Cumandes" width="800" height="145">
-      <span class="lockup__app">Préstamos de equipos</span>
+      <span class="lockup__app">Gestión de equipos</span>
     </p>
     <h1 id="entrar-titulo" class="entrar__titulo">Entrar</h1>
     <p class="entrar__ayuda">Usa el correo y la contraseña que te dieron para esta herramienta.</p>
@@ -61,7 +60,7 @@
   <header class="barra">
     <p class="lockup">
       <img class="logo" src="assets/logo.webp" alt="Cumandes" width="800" height="145">
-      <span class="lockup__app">Préstamos de equipos</span>
+      <span class="lockup__app">Gestión de equipos</span>
     </p>
     <div class="barra__acciones">
       <button class="boton boton--icono" type="button" id="btn-tema"
@@ -72,69 +71,193 @@
     </div>
   </header>
 
-  <p class="sesion">
-    <span class="rotulo">SESIÓN</span> <span id="sesion-correo" class="mono"></span>
-    <span id="sesion-rol" class="insignia" hidden>Administrador</span>
-  </p>
-  <p id="alcance" class="alcance"></p>
-
-  <div class="pestanas" role="tablist" aria-label="Secciones">
-    <button class="pestana" type="button" id="tab-lista"
-            role="tab" aria-selected="true" aria-controls="vista-lista">La lista</button>
-    <button class="pestana" type="button" id="tab-registrar"
-            role="tab" aria-selected="false" aria-controls="vista-registrar">Registrar</button>
+  <div class="encabezado">
+    <div class="encabezado__texto">
+      <h1 class="encabezado__titulo">Gestión de equipos</h1>
+      <p class="encabezado__sub">Control de préstamos y devoluciones</p>
+      <p class="sesion">
+        <span class="rotulo">Sesión</span> <span id="sesion-correo" class="mono"></span>
+        <span id="sesion-rol" class="insignia" hidden>Administrador</span>
+      </p>
+      <p id="alcance" class="alcance"></p>
+    </div>
+    <button class="boton boton--primario" type="button" id="btn-nuevo">+ Nuevo préstamo</button>
   </div>
 
+  <nav class="pestanas" role="tablist" aria-label="Secciones">
+    <button class="pestana" type="button" role="tab" id="tab-dashboard" data-vista="dashboard" aria-controls="vista-dashboard" aria-selected="true">Dashboard</button>
+    <button class="pestana" type="button" role="tab" id="tab-equipos" data-vista="equipos" aria-controls="vista-equipos" aria-selected="false">Equipos</button>
+    <button class="pestana" type="button" role="tab" id="tab-prestamos" data-vista="prestamos" aria-controls="vista-prestamos" aria-selected="false">Préstamos</button>
+    <button class="pestana" type="button" role="tab" id="tab-historial" data-vista="historial" aria-controls="vista-historial" aria-selected="false">Historial</button>
+    <button class="pestana" type="button" role="tab" id="tab-reportes" data-vista="reportes" aria-controls="vista-reportes" aria-selected="false" hidden>Reportes</button>
+  </nav>
+
+  <p id="app-error" class="aviso aviso--error app-aviso" role="alert" hidden></p>
+
   <!-- ================================================================== -->
-  <!--  PANTALLA 2 · LA LISTA                                              -->
+  <!--  DASHBOARD                                                          -->
   <!-- ================================================================== -->
-  <main id="vista-lista" class="vista" role="tabpanel" aria-labelledby="tab-lista" tabindex="-1">
+  <main id="vista-dashboard" class="vista" role="tabpanel" aria-labelledby="tab-dashboard" tabindex="-1">
+    <h2 class="visualmente-oculto">Dashboard</h2>
+    <section class="tarjetas" aria-label="Resumen">
+      <div class="tarjeta"><span class="tarjeta__rotulo" id="kpi-1-rotulo">Equipos</span><span class="tarjeta__cifra mono" id="kpi-1">—</span><span class="tarjeta__nota" id="kpi-1-nota"></span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo" id="kpi-2-rotulo">Prestados</span><span class="tarjeta__cifra mono" id="kpi-2">—</span><span class="tarjeta__nota" id="kpi-2-nota"></span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo" id="kpi-3-rotulo">Disponibles</span><span class="tarjeta__cifra mono" id="kpi-3">—</span><span class="tarjeta__nota" id="kpi-3-nota"></span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo" id="kpi-4-rotulo">Vencidos</span><span class="tarjeta__cifra mono" id="kpi-4">—</span><span class="tarjeta__nota" id="kpi-4-nota"></span></div>
+    </section>
 
-    <div class="filtros" role="group" aria-label="Filtrar préstamos por estado">
-      <button class="chip" type="button" data-filtro="prestados" aria-pressed="true">
-        <span class="chip__cifra mono" id="cifra-prestados">—</span>
-        <span class="chip__rotulo">PRESTADOS</span>
-      </button>
-      <button class="chip" type="button" data-filtro="devueltos" aria-pressed="false">
-        <span class="chip__cifra mono" id="cifra-devueltos">—</span>
-        <span class="chip__rotulo">DEVUELTOS</span>
-      </button>
-      <button class="chip" type="button" data-filtro="todos" aria-pressed="false">
-        <span class="chip__cifra mono" id="cifra-todos">—</span>
-        <span class="chip__rotulo">TODOS</span>
-      </button>
-    </div>
+    <section class="bloque" aria-labelledby="atencion-titulo">
+      <div class="bloque__cabeza">
+        <h2 class="bloque__titulo" id="atencion-titulo">Requieren atención</h2>
+      </div>
+      <ul id="lista-atencion" class="registro"></ul>
+      <p id="atencion-vacio" class="bloque__vacio" hidden>Nada pendiente: no hay préstamos vencidos ni que venzan hoy o mañana.</p>
+    </section>
 
-    <p id="lista-conteo" class="conteo" role="status"></p>
-
-    <ul id="lista" class="registro"></ul>
-
-    <div id="lista-vacio" class="vacio" hidden>
-      <p id="lista-vacio-texto"></p>
-      <button class="boton boton--contorno" type="button" id="btn-vacio-registrar">Registrar préstamo</button>
-    </div>
-
-    <p id="lista-error" class="aviso aviso--error" role="alert" hidden></p>
+    <section class="bloque" aria-labelledby="recientes-titulo">
+      <div class="bloque__cabeza">
+        <h2 class="bloque__titulo" id="recientes-titulo">Préstamos recientes</h2>
+        <button class="boton boton--fantasma" type="button" data-ir="historial">Ver historial</button>
+      </div>
+      <div class="tabla-marco">
+        <table class="tabla" id="tabla-recientes">
+          <thead><tr><th scope="col">Equipo</th><th scope="col">Responsable</th><th scope="col">Fecha préstamo</th><th scope="col">Devolución prevista</th><th scope="col">Estado</th><th scope="col"><span class="visualmente-oculto">Acción</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="recientes-vacio" class="bloque__vacio" hidden>Todavía no hay préstamos registrados.</p>
+    </section>
   </main>
 
   <!-- ================================================================== -->
-  <!--  PANTALLA 3 · REGISTRAR                                             -->
+  <!--  EQUIPOS                                                            -->
   <!-- ================================================================== -->
-  <main id="vista-registrar" class="vista" role="tabpanel" aria-labelledby="tab-registrar" tabindex="-1" hidden>
+  <main id="vista-equipos" class="vista" role="tabpanel" aria-labelledby="tab-equipos" tabindex="-1" hidden>
+    <h2 class="visualmente-oculto">Equipos</h2>
+    <div class="herramientas">
+      <label class="visualmente-oculto" for="buscar-equipo">Buscar equipo</label>
+      <input class="entrada buscador" type="search" id="buscar-equipo" placeholder="Buscar equipo, código o categoría…" autocomplete="off">
+      <div class="herramientas__acciones solo-admin" hidden>
+        <button class="boton boton--contorno" type="button" id="btn-agregar-equipo">+ Agregar equipo</button>
+        <button class="boton boton--fantasma" type="button" id="btn-agregar-varios">Agregar varios</button>
+      </div>
+    </div>
+
+    <div class="filtros" role="group" aria-label="Filtrar equipos">
+      <button class="chip" type="button" data-filtro-equipos="todos" aria-pressed="true"><span class="chip__cifra mono" id="eq-cifra-todos">—</span><span class="chip__rotulo">Todos</span></button>
+      <button class="chip" type="button" data-filtro-equipos="disponibles" aria-pressed="false"><span class="chip__cifra mono" id="eq-cifra-disponibles">—</span><span class="chip__rotulo">Disponibles</span></button>
+      <button class="chip" type="button" data-filtro-equipos="prestados" aria-pressed="false"><span class="chip__cifra mono" id="eq-cifra-prestados">—</span><span class="chip__rotulo">Prestados</span></button>
+      <button class="chip solo-admin" type="button" data-filtro-equipos="baja" aria-pressed="false" hidden><span class="chip__cifra mono" id="eq-cifra-baja">—</span><span class="chip__rotulo">De baja</span></button>
+    </div>
+
+    <p id="equipos-conteo" class="conteo" role="status"></p>
+    <div class="tabla-marco" id="equipos-marco">
+      <table class="tabla" id="tabla-equipos">
+        <thead><tr><th scope="col">Equipo</th><th scope="col">Código</th><th scope="col">Categoría</th><th scope="col">Estado</th><th scope="col" id="th-responsable" hidden>Responsable</th><th scope="col"><span class="visualmente-oculto">Acción</span></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="equipos-vacio" class="vacio" hidden>
+      <p id="equipos-vacio-texto"></p>
+      <button class="boton boton--contorno solo-admin" type="button" id="btn-vacio-agregar" hidden>+ Agregar equipo</button>
+    </div>
+  </main>
+
+  <!-- ================================================================== -->
+  <!--  PRÉSTAMOS · los que siguen afuera                                  -->
+  <!-- ================================================================== -->
+  <main id="vista-prestamos" class="vista" role="tabpanel" aria-labelledby="tab-prestamos" tabindex="-1" hidden>
+    <h2 class="visualmente-oculto">Préstamos</h2>
+    <div class="filtros" role="group" aria-label="Filtrar préstamos activos">
+      <button class="chip" type="button" data-filtro-prestamos="activos" aria-pressed="true"><span class="chip__cifra mono" id="pr-cifra-activos">—</span><span class="chip__rotulo">Prestados</span></button>
+      <button class="chip" type="button" data-filtro-prestamos="vencidos" aria-pressed="false"><span class="chip__cifra mono" id="pr-cifra-vencidos">—</span><span class="chip__rotulo">Vencidos</span></button>
+      <button class="chip" type="button" data-filtro-prestamos="pronto" aria-pressed="false"><span class="chip__cifra mono" id="pr-cifra-pronto">—</span><span class="chip__rotulo">Vencen pronto</span></button>
+    </div>
+    <p id="prestamos-conteo" class="conteo" role="status"></p>
+    <ul id="lista-prestamos" class="registro"></ul>
+    <div id="prestamos-vacio" class="vacio" hidden>
+      <p id="prestamos-vacio-texto"></p>
+      <button class="boton boton--contorno" type="button" data-ir="nuevo">+ Nuevo préstamo</button>
+    </div>
+  </main>
+
+  <!-- ================================================================== -->
+  <!--  HISTORIAL                                                          -->
+  <!-- ================================================================== -->
+  <main id="vista-historial" class="vista" role="tabpanel" aria-labelledby="tab-historial" tabindex="-1" hidden>
+    <h2 class="visualmente-oculto">Historial</h2>
+    <div class="herramientas">
+      <label class="visualmente-oculto" for="buscar-historial">Buscar en el historial</label>
+      <input class="entrada buscador" type="search" id="buscar-historial" placeholder="Buscar por equipo, persona o código…" autocomplete="off">
+    </div>
+    <div class="filtros" role="group" aria-label="Filtrar historial">
+      <button class="chip" type="button" data-filtro-historial="todos" aria-pressed="true"><span class="chip__cifra mono" id="hi-cifra-todos">—</span><span class="chip__rotulo">Todos</span></button>
+      <button class="chip" type="button" data-filtro-historial="prestados" aria-pressed="false"><span class="chip__cifra mono" id="hi-cifra-prestados">—</span><span class="chip__rotulo">Prestados</span></button>
+      <button class="chip" type="button" data-filtro-historial="devueltos" aria-pressed="false"><span class="chip__cifra mono" id="hi-cifra-devueltos">—</span><span class="chip__rotulo">Devueltos</span></button>
+      <button class="chip" type="button" data-filtro-historial="vencidos" aria-pressed="false"><span class="chip__cifra mono" id="hi-cifra-vencidos">—</span><span class="chip__rotulo">Vencidos</span></button>
+    </div>
+    <p id="historial-conteo" class="conteo" role="status"></p>
+    <div class="tabla-marco" id="historial-marco">
+      <table class="tabla" id="tabla-historial">
+        <thead><tr><th scope="col">Equipo</th><th scope="col">Persona</th><th scope="col">Salida</th><th scope="col">Devolución</th><th scope="col">Duración</th><th scope="col">Estado</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="historial-vacio" class="vacio" hidden><p id="historial-vacio-texto"></p></div>
+  </main>
+
+  <!-- ================================================================== -->
+  <!--  REPORTES · solo administrador                                      -->
+  <!-- ================================================================== -->
+  <main id="vista-reportes" class="vista" role="tabpanel" aria-labelledby="tab-reportes" tabindex="-1" hidden>
+    <h2 class="visualmente-oculto">Reportes</h2>
+    <section class="tarjetas" aria-label="Indicadores">
+      <div class="tarjeta"><span class="tarjeta__rotulo">Préstamos</span><span class="tarjeta__cifra mono" id="rep-total">—</span><span class="tarjeta__nota">registrados en total</span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo">Tiempo promedio</span><span class="tarjeta__cifra mono" id="rep-promedio">—</span><span class="tarjeta__nota">de préstamo, en devueltos</span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo">A tiempo</span><span class="tarjeta__cifra mono" id="rep-a-tiempo">—</span><span class="tarjeta__nota">devueltos dentro del plazo</span></div>
+      <div class="tarjeta"><span class="tarjeta__rotulo">Vencidos ahora</span><span class="tarjeta__cifra mono" id="rep-vencidos">—</span><span class="tarjeta__nota">sin devolver</span></div>
+    </section>
+
+    <div class="reportes">
+      <section class="bloque panel" aria-labelledby="rep-mes-titulo">
+        <h2 class="bloque__titulo" id="rep-mes-titulo">Préstamos por mes</h2>
+        <div class="barras" id="rep-mes"></div>
+      </section>
+      <section class="bloque panel" aria-labelledby="rep-equipos-titulo">
+        <h2 class="bloque__titulo" id="rep-equipos-titulo">Equipos más solicitados</h2>
+        <div class="barras" id="rep-equipos"></div>
+      </section>
+      <section class="bloque panel" aria-labelledby="rep-personas-titulo">
+        <h2 class="bloque__titulo" id="rep-personas-titulo">Personas con más préstamos</h2>
+        <div class="barras" id="rep-personas"></div>
+      </section>
+      <section class="bloque panel" aria-labelledby="rep-retrasos-titulo">
+        <h2 class="bloque__titulo" id="rep-retrasos-titulo">Equipos con más retrasos</h2>
+        <div class="barras" id="rep-retrasos"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================================================================== -->
+  <!--  NUEVO PRÉSTAMO                                                     -->
+  <!-- ================================================================== -->
+  <main id="vista-nuevo" class="vista" tabindex="-1" aria-labelledby="nuevo-titulo" hidden>
+    <button class="boton boton--fantasma volver" type="button" data-ir="atras">← Volver</button>
     <form id="form-prestamo" novalidate>
+      <h2 class="form__titulo" id="nuevo-titulo">Registrar préstamo</h2>
 
       <div class="campo">
-        <label class="rotulo" for="equipo">¿Qué equipo entregas?</label>
-        <input class="entrada" type="text" id="equipo" name="equipo" required
-               maxlength="120" autocomplete="off" autocapitalize="sentences"
-               enterkeyhint="next" placeholder="Ej.: Taladro Bosch GSB-13">
+        <label class="rotulo" for="equipo-sel">Equipo</label>
+        <select class="entrada" id="equipo-sel" name="equipo" required></select>
+        <p id="equipo-ayuda" class="campo__ayuda"></p>
       </div>
 
       <div class="campo">
-        <label class="rotulo" for="persona">¿A quién se lo entregas?</label>
-        <input class="entrada" type="text" id="persona" name="persona" required
+        <label class="rotulo" for="persona">Persona responsable</label>
+        <input class="entrada" type="text" id="persona" name="persona" required list="personas-conocidas"
                maxlength="120" autocomplete="off" autocapitalize="words"
-               enterkeyhint="next" placeholder="Ej.: Carlos Ruiz">
+               enterkeyhint="next" placeholder="Escribe o elige una persona">
+        <datalist id="personas-conocidas"></datalist>
       </div>
 
       <div class="campo">
@@ -146,30 +269,31 @@
         <p id="correo-persona-ayuda" class="campo__ayuda">Ahí le llega la confirmación del préstamo y, si se pasa del plazo, un recordatorio.</p>
       </div>
 
-      <div class="campo">
-        <label class="rotulo" for="fecha">Fecha de entrega</label>
-        <input class="entrada" type="date" id="fecha" name="fecha" required>
-        <div class="atajos" role="group" aria-label="Atajos de fecha de entrega">
-          <button class="chip chip--mini" type="button" data-dias="0">Hoy</button>
-          <button class="chip chip--mini" type="button" data-dias="-1">Ayer</button>
-          <button class="chip chip--mini" type="button" data-dias="-7">Hace una semana</button>
+      <div class="form__fila">
+        <div class="campo">
+          <label class="rotulo" for="fecha">Fecha de préstamo</label>
+          <input class="entrada" type="date" id="fecha" name="fecha" required>
+          <div class="atajos" role="group" aria-label="Atajos de fecha de préstamo">
+            <button class="chip chip--mini" type="button" data-dias="0">Hoy</button>
+            <button class="chip chip--mini" type="button" data-dias="-1">Ayer</button>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label class="rotulo" for="plazo">Fecha prevista de devolución</label>
+          <input class="entrada" type="date" id="plazo" name="plazo" required>
+          <div class="atajos" role="group" aria-label="Plazo contado desde la fecha de préstamo">
+            <button class="chip chip--mini" type="button" data-plazo="3">3 días</button>
+            <button class="chip chip--mini" type="button" data-plazo="7">1 semana</button>
+            <button class="chip chip--mini" type="button" data-plazo="30">1 mes</button>
+          </div>
         </div>
       </div>
 
       <div class="campo">
-        <label class="rotulo" for="plazo">Devolver a más tardar</label>
-        <input class="entrada" type="date" id="plazo" name="plazo" required>
-        <div class="atajos" role="group" aria-label="Plazo contado desde la fecha de entrega">
-          <button class="chip chip--mini" type="button" data-plazo="7">1 semana</button>
-          <button class="chip chip--mini" type="button" data-plazo="14">2 semanas</button>
-          <button class="chip chip--mini" type="button" data-plazo="30">1 mes</button>
-        </div>
-      </div>
-
-      <div class="campo">
-        <label class="rotulo" for="nota">Nota <span class="rotulo__suave">(opcional)</span></label>
+        <label class="rotulo" for="nota">Observaciones <span class="rotulo__suave">(opcional)</span></label>
         <textarea class="entrada" id="nota" name="nota" rows="3" maxlength="500"
-                  placeholder="Ej.: sale para la sede norte"></textarea>
+                  placeholder="Estado del equipo, accesorios entregados, etc."></textarea>
       </div>
 
       <p id="prestamo-error" class="aviso aviso--error" role="alert" hidden></p>
@@ -177,6 +301,82 @@
       <button class="boton boton--primario boton--ancho" type="submit" id="btn-prestar">Registrar préstamo</button>
     </form>
   </main>
+
+  <!-- ================================================================== -->
+  <!--  VENTANAS                                                           -->
+  <!-- ================================================================== -->
+  <dialog id="dlg-devolver" class="dialogo" aria-labelledby="dlg-devolver-titulo">
+    <form method="dialog" class="dialogo__cuerpo" id="form-devolver">
+      <h2 class="dialogo__titulo" id="dlg-devolver-titulo">¿Confirmar devolución?</h2>
+      <dl class="detalles" id="devolver-detalles"></dl>
+      <p id="devolver-error" class="aviso aviso--error" role="alert" hidden></p>
+      <div class="dialogo__acciones">
+        <button class="boton boton--fantasma" type="button" data-cerrar>Cancelar</button>
+        <button class="boton boton--primario" type="submit" id="btn-confirmar-devolver">Confirmar devolución</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-equipo" class="dialogo" aria-labelledby="dlg-equipo-titulo">
+    <form method="dialog" class="dialogo__cuerpo" id="form-equipo" novalidate>
+      <h2 class="dialogo__titulo" id="dlg-equipo-titulo">Agregar equipo</h2>
+      <div class="campo">
+        <label class="rotulo" for="eq-nombre">Nombre del equipo</label>
+        <input class="entrada" type="text" id="eq-nombre" maxlength="120" autocomplete="off" placeholder="Ej.: Taladro Bosch GSB-13" required>
+      </div>
+      <div class="campo">
+        <label class="rotulo" for="eq-categoria">Categoría <span class="rotulo__suave">(opcional)</span></label>
+        <input class="entrada" type="text" id="eq-categoria" maxlength="60" autocomplete="off" list="categorias-conocidas" placeholder="Ej.: Herramientas eléctricas">
+        <datalist id="categorias-conocidas"></datalist>
+      </div>
+      <div class="campo">
+        <label class="rotulo" for="eq-codigo">Código <span class="rotulo__suave">(opcional)</span></label>
+        <input class="entrada mono" type="text" id="eq-codigo" maxlength="40" autocomplete="off" autocapitalize="characters" placeholder="Se asigna solo: EQ-001, EQ-002…">
+      </div>
+      <p id="equipo-error" class="aviso aviso--error" role="alert" hidden></p>
+      <div class="dialogo__acciones">
+        <button class="boton boton--fantasma dialogo__izquierda" type="button" id="btn-baja-equipo" hidden>Dar de baja</button>
+        <button class="boton boton--fantasma" type="button" data-cerrar>Cancelar</button>
+        <button class="boton boton--primario" type="submit" id="btn-guardar-equipo">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-varios" class="dialogo" aria-labelledby="dlg-varios-titulo">
+    <form method="dialog" class="dialogo__cuerpo" id="form-varios" novalidate>
+      <h2 class="dialogo__titulo" id="dlg-varios-titulo">Agregar varios equipos</h2>
+      <p class="campo__ayuda">Un equipo por línea. Puedes pegar columnas desde Excel en este orden: <strong>Nombre · Categoría · Código</strong>. La categoría y el código son opcionales; sin código, se asigna uno solo.</p>
+      <div class="campo">
+        <label class="visualmente-oculto" for="varios-texto">Equipos, uno por línea</label>
+        <textarea class="entrada mono" id="varios-texto" rows="8" placeholder="Taladro Bosch GSB-13	Herramientas eléctricas&#10;Multímetro Fluke 117	Medición&#10;Escalera tijera 6 pasos"></textarea>
+      </div>
+      <p id="varios-resumen" class="campo__ayuda" role="status"></p>
+      <p id="varios-error" class="aviso aviso--error" role="alert" hidden></p>
+      <div class="dialogo__acciones">
+        <button class="boton boton--fantasma" type="button" data-cerrar>Cancelar</button>
+        <button class="boton boton--primario" type="submit" id="btn-guardar-varios" disabled>Agregar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-detalle" class="dialogo dialogo--ancho" aria-labelledby="dlg-detalle-titulo">
+    <div class="dialogo__cuerpo">
+      <div class="dialogo__cabeza">
+        <div>
+          <p class="rotulo mono" id="detalle-codigo"></p>
+          <h2 class="dialogo__titulo" id="dlg-detalle-titulo"></h2>
+        </div>
+        <button class="boton boton--icono" type="button" data-cerrar aria-label="Cerrar">✕</button>
+      </div>
+      <dl class="detalles" id="detalle-datos"></dl>
+      <h3 class="dialogo__subtitulo">Historial del equipo</h3>
+      <ul class="historial-equipo" id="detalle-historial"></ul>
+      <div class="dialogo__acciones">
+        <button class="boton boton--fantasma solo-admin dialogo__izquierda" type="button" id="btn-detalle-editar" hidden>Editar</button>
+        <button class="boton boton--contorno" type="button" id="btn-detalle-prestar">Prestar este equipo</button>
+      </div>
+    </div>
+  </dialog>
 
   <div id="anuncio" class="visualmente-oculto" role="status" aria-live="polite"></div>
   <div id="toast" class="toast" hidden></div>

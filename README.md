@@ -1,13 +1,23 @@
-# Préstamos de equipos
+# Gestión de equipos
 
-Registro compartido de qué equipo se prestó, a quién, desde cuándo, y cuándo lo devolvieron.
+Control de préstamos y devoluciones: qué equipo salió, a quién, hasta cuándo y cuándo volvió.
 
-Tres pantallas:
+Secciones:
 
-1. **Entrar** — correo y contraseña. Sin sesión iniciada no se ve nada.
-2. **La lista** — los préstamos con su estado y un filtro: prestados / devueltos / todos.
-3. **Registrar** — formulario con equipo, a quién, su correo (opcional), fecha de entrega,
-   plazo de devolución y nota opcional.
+1. **Dashboard** — cuatro cifras (equipos, prestados, disponibles, vencidos), lo que
+   requiere atención (vencidos y lo que vence hoy o mañana) y los préstamos recientes.
+2. **Equipos** — el catálogo, con código (EQ-001…), categoría y estado, buscador e
+   historial de cada equipo. El administrador agrega equipos uno a uno o pegando una
+   lista desde Excel, los edita y los da de baja.
+3. **Préstamos** — lo que sigue afuera: prestados, vencidos y los que vencen pronto.
+4. **Historial** — todos los préstamos con buscador (equipo, persona o código), filtros y
+   la duración de cada uno.
+5. **Reportes** (solo administrador) — equipos más solicitados, personas con más
+   préstamos, tiempo promedio, devoluciones a tiempo, retrasos y préstamos por mes.
+
+**+ Nuevo préstamo** pide el equipo (se elige del catálogo, solo los disponibles), la
+persona responsable, su correo (opcional), la fecha de préstamo, la fecha prevista de
+devolución y observaciones. La devolución pide confirmación antes de guardarse.
 
 Si el préstamo tiene correo, a esa persona le llegan correos automáticos, enviados con
 [Brevo](https://www.brevo.com):
@@ -25,11 +35,14 @@ Dos roles:
 |---|---|---|
 | Registrar préstamos | Sí | Sí |
 | Ver préstamos | Solo los que registró | Todos |
-| Marcar devoluciones | No | Sí |
+| Ver el catálogo | Sí, y si cada equipo está disponible | Sí, y quién lo tiene |
+| Editar el catálogo | No | Sí |
+| Marcar devoluciones y recordar | No | Sí |
+| Reportes | No | Sí |
 
-El administrador es `jortiz@equitel.com.co`. El botón **Devolver** solo le aparece a él,
-en cada fila que sigue prestada: se marca la devolución con el equipo en la otra mano,
-sin abrir un formulario.
+El administrador es `jortiz@equitel.com.co`. Los botones **Devolver** y **Recordar** solo
+le aparecen a él. **Recordar** envía en ese momento un correo a quien tiene el equipo
+(no repite si ya se envió uno hace menos de 10 minutos).
 
 ## Cómo está hecho
 
@@ -229,10 +242,15 @@ vez: un glifo con silueta propia (cuadro macizo si está prestado, cuadro perfor
 devolvió), la etiqueta escrita, y la frase completa. Al sol, en escala de grises o con
 daltonismo se sigue leyendo.
 
-**El campo equipo es texto libre.** Es lo que se pidió para esta versión. Vale la pena
-saber que `Taladro Bosch`, `taladro bosch` y `Taladro` se registran como tres cosas
-distintas: si más adelante hace falta un historial confiable por equipo, el siguiente
-paso es un catálogo del que se elija en vez de escribir.
+**El equipo se elige del catálogo.** Desde la versión 2 cada préstamo apunta a un equipo
+con código, así que el historial y los reportes por equipo son confiables. La base impide
+prestar dos veces el mismo equipo al mismo tiempo y prestar uno dado de baja. Los
+préstamos registrados antes del catálogo conservan el nombre escrito a mano y aparecen en
+el historial sin código.
+
+**Quién tiene cada equipo es privado.** Un usuario normal ve si un equipo está disponible
+o prestado, pero no a quién, salvo en los préstamos que registró él. Eso lo resuelve la
+función `estado_equipos()` en la base, no la pantalla.
 
 **Un préstamo vence al día siguiente de su plazo.** Si el plazo es el 3 de octubre, ese día
 todavía está a tiempo; desde el 4 aparece como *Vencido* y sale el recordatorio. Los

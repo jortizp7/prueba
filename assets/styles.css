@@ -327,6 +327,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 .chip--mini {
   flex-direction: row;
+  align-items: center;
   min-height: 40px;
   padding: 0 14px;
   font-size: 14px;
@@ -473,15 +474,49 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 }
 .alcance:empty { display: none; }
 
-/* Pestañas: subrayado grueso en la activa, como una carpeta de archivo. */
+/* Encabezado de la app: el nombre del sistema, la sesión y la acción
+   principal. El botón rojo es la única cosa que se toca aquí. */
+.encabezado {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 22px var(--lateral) 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+.encabezado__texto { min-width: 0; }
+.encabezado__titulo {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.encabezado__sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.encabezado .sesion,
+.encabezado .alcance { padding: 0; margin: 10px 0 0; max-width: none; }
+.encabezado .alcance { margin-top: 2px; }
+
+/* Pestañas: subrayado grueso en la activa, como una carpeta de archivo.
+   En celular se desplazan de lado en vez de partirse en dos renglones. */
 .pestanas {
   display: flex;
   gap: 24px;
   padding: 0 var(--lateral);
   margin: 16px auto 0;
-  max-width: 1040px;
+  max-width: 1120px;
   border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.pestanas::-webkit-scrollbar { display: none; }
+.pestana { white-space: nowrap; flex: none; }
+
+.app-aviso { max-width: 1072px; margin: 16px auto 0; }
+@media (max-width: 1119px) { .app-aviso { margin-left: var(--lateral); margin-right: var(--lateral); } }
 .pestana {
   appearance: none;
   border: 0;
@@ -503,7 +538,7 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 
 .vista {
   padding: 22px var(--lateral) 56px;
-  max-width: 1040px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 .vista:focus { outline: none; }
@@ -512,17 +547,241 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   display: flex;
   flex-direction: column;
   gap: 22px;
-  max-width: 580px;
+  max-width: 640px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-grande);
   box-shadow: var(--sombra);
   padding: 28px 24px;
 }
+.form__titulo { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.form__fila { display: grid; gap: 22px; }
+.volver { margin: 0 0 12px -12px; }
+
+select.entrada {
+  appearance: none;
+  padding-right: 40px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
 
 .atajos { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .campo__ayuda { font-size: 13px; color: var(--muted); }
+
+/* --------------------------------------------------------------------------
+   5b. DASHBOARD · tarjetas, bloques, tablas
+   -------------------------------------------------------------------------- */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.tarjeta {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-grande);
+  box-shadow: var(--sombra);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tarjeta__rotulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tarjeta__cifra { font-size: 34px; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.tarjeta__nota { font-size: 12px; color: var(--muted); }
+/* La tarjeta de vencidos se marca solo cuando hay algo vencido. */
+.tarjeta--alerta { border-color: var(--danger); box-shadow: inset 0 3px 0 var(--danger), var(--sombra); }
+.tarjeta--alerta .tarjeta__cifra { color: var(--danger); }
+
+.bloque { margin-bottom: 30px; }
+.bloque__cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.bloque__titulo { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.bloque__vacio {
+  padding: 18px;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-medio);
+}
+
+.herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.buscador { flex: 1 1 280px; min-width: 0; }
+.herramientas__acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Tablas: en escritorio filas; en celular cada fila se vuelve tarjeta y cada
+   dato lleva su rótulo, para que nada dependa de ver la cabecera. */
+.tabla-marco {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-grande);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabla th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.tabla td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla tbody tr:hover { background: var(--surface-2); }
+.tabla__principal { font-weight: 700; overflow-wrap: anywhere; }
+.tabla__secundario { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
+.tabla__accion { text-align: right; white-space: nowrap; }
+.tabla__accion .boton { min-height: 38px; padding: 0 12px; font-size: 14px; }
+.tabla .mono { white-space: nowrap; }
+.texto-suave { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .tabla thead { display: none; }
+  .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; width: 100%; }
+  .tabla tr { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .tabla tbody tr:last-child { border-bottom: 0; }
+  .tabla td {
+    border: 0;
+    padding: 3px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    text-align: right;
+  }
+  .tabla td::before {
+    content: attr(data-etiqueta);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    flex: none;
+  }
+  .tabla td.tabla__principal { display: block; text-align: left; font-size: 16px; padding-bottom: 6px; }
+  .tabla td.tabla__principal::before { content: none; }
+  .tabla td.tabla__accion { justify-content: flex-start; padding-top: 10px; }
+  .tabla td.tabla__accion::before { content: none; }
+  .tabla td:empty { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   5c. VENTANAS
+   -------------------------------------------------------------------------- */
+.dialogo {
+  border: 0;
+  padding: 0;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  border-radius: var(--r-grande);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--sombra-alta);
+  border-top: 3px solid var(--accent);
+}
+.dialogo--ancho { width: min(680px, calc(100vw - 32px)); }
+.dialogo::backdrop { background: rgba(17, 17, 17, 0.5); }
+.dialogo[open] { animation: subir 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.dialogo__cuerpo { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.dialogo__cabeza { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dialogo__titulo { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.dialogo__subtitulo { margin: 4px 0 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.dialogo__acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.dialogo__izquierda { margin-right: auto; }
+
+.detalles {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 18px;
+  font-size: 15px;
+}
+.detalles dt { color: var(--muted); }
+.detalles dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.historial-equipo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-medio);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.historial-equipo li {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.historial-equipo li:last-child { border-bottom: 0; }
+.historial-equipo .texto-suave { font-size: 13px; }
+
+/* --------------------------------------------------------------------------
+   5d. REPORTES · barras hechas con cajas: sin librerías, legibles impresas
+   -------------------------------------------------------------------------- */
+.reportes { display: grid; gap: 16px; }
+.panel {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-grande);
+  box-shadow: var(--sombra);
+  padding: 18px 20px 20px;
+}
+.panel .bloque__titulo { margin-bottom: 14px; }
+.barras { display: flex; flex-direction: column; gap: 10px; }
+.barra-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.barra-fila__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-fila__pista { display: block; height: 12px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.barra-fila__relleno { display: block; height: 100%; background: var(--estado); border-radius: 3px; min-width: 2px; }
+.barra-fila__relleno--alerta { background: var(--danger); }
+.barra-fila__valor { font-weight: 700; min-width: 2ch; text-align: right; }
+.barras__vacio { font-size: 14px; color: var(--muted); }
 
 /* --------------------------------------------------------------------------
    6. PANTALLA 2 · LA LISTA
@@ -533,7 +792,9 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   overflow-x: auto;
   padding: 2px 2px 6px;
   margin-bottom: 14px;
+  scrollbar-width: none;
 }
+.filtros::-webkit-scrollbar { display: none; }
 
 .conteo {
   margin-bottom: 12px;
@@ -615,6 +876,10 @@ textarea.entrada { min-height: 84px; resize: vertical; }
 /* Vencido usa el rojo de alerta (danger), no el de marca: avisa, no se toca.
    Lo dice además la palabra escrita, así que no depende solo del color. */
 .etiqueta--vencido  { color: var(--danger); background: var(--danger-soft); }
+/* Disponible: contorno vacío, la forma opuesta a "prestado" relleno. */
+.etiqueta--disponible { color: var(--ink); background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.etiqueta--baja { color: var(--muted); background: transparent; text-decoration: line-through; box-shadow: inset 0 0 0 1px var(--line); }
+.etiqueta { display: inline-block; white-space: nowrap; }
 
 .fila__plazo { color: var(--muted); }
 .fila__plazo--vencido { color: var(--danger); font-weight: 600; }
@@ -736,7 +1001,17 @@ textarea.entrada { min-height: 84px; resize: vertical; }
   .fila__accion { grid-column: 3; margin-top: 0; align-self: center; }
 
   #form-prestamo { padding: 32px 30px; }
+
+  .tarjetas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .reportes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .encabezado__titulo { font-size: 28px; }
 }
+
+@media (min-width: 560px) {
+  .form__fila { grid-template-columns: 1fr 1fr; }
+}
+
+.fila__accion { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* --------------------------------------------------------------------------
    9. MOVIMIENTO — nunca es el único portador de información.
