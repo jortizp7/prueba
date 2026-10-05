@@ -147,6 +147,101 @@ revoke all on function public.es_admin() from public, anon;
 grant execute on function public.es_admin() to authenticated;
 
 -- ---------------------------------------------------------------------------
+--  Catalogo de equipos
+--  Cada equipo tiene un codigo (EQ-001, EQ-002...) que lo identifica aunque
+--  haya dos con el mismo nombre. Todos los usuarios ven el catalogo para
+--  elegir que prestar; solo el administrador lo edita. Un equipo no se borra:
+--  se da de baja (activo = false) y su historial sigue intacto.
+-- ---------------------------------------------------------------------------
+create sequence if not exists public.equipos_codigo_seq;
+
+create table if not exists public.equipos (
+  id         uuid        primary key default gen_random_uuid(),
+  codigo     text        not null unique check (length(codigo) between 1 and 40),
+  nombre     text        not null check (length(btrim(nombre)) between 1 and 120),
+  categoria  text        check (categoria is null or length(btrim(categoria)) between 1 and 60),
+  activo     boolean     not null default true,
+  creado_en  timestamptz not null default now()
+);
+
+comment on table public.equipos is 'Catalogo de equipos que se pueden prestar.';
+
+-- El codigo se escribe en mayusculas y sin espacios sobrantes. Si no se da,
+-- se toma el siguiente libre: si alguien ya uso EQ-005 a mano, se lo salta.
+create or replace function public.equipos_antes_de_guardar()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  candidato text;
+begin
+  new.nombre    := btrim(new.nombre);
+  new.categoria := nullif(btrim(new.categoria), '');
+  new.codigo    := nullif(upper(btrim(new.codigo)), '');
+
+  if tg_op = 'UPDATE' then
+    new.id        := old.id;
+    new.creado_en := old.creado_en;
+    new.codigo    := coalesce(new.codigo, old.codigo);
+  elsif new.codigo is null then
+    loop
+      candidato := 'EQ-' || lpad(nextval('public.equipos_codigo_seq')::text, 3, '0');
+      exit when not exists (select 1 from public.equipos e where e.codigo = candidato);
+    end loop;
+    new.codigo := candidato;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists equipos_antes_de_guardar_trg on public.equipos;
+create trigger equipos_antes_de_guardar_trg
+  before insert or update on public.equipos
+  for each row execute function public.equipos_antes_de_guardar();
+
+-- El trigger corre con la sesion del administrador: necesita la secuencia.
+grant usage, select on sequence public.equipos_codigo_seq to authenticated;
+
+alter table public.equipos enable row level security;
+revoke all on public.equipos from anon;
+
+drop policy if exists "leer catalogo autenticado" on public.equipos;
+create policy "leer catalogo autenticado"
+  on public.equipos for select
+  to authenticated
+  using (true);
+
+drop policy if exists "agregar equipo admin" on public.equipos;
+create policy "agregar equipo admin"
+  on public.equipos for insert
+  to authenticated
+  with check ((select public.es_admin()));
+
+drop policy if exists "editar equipo admin" on public.equipos;
+create policy "editar equipo admin"
+  on public.equipos for update
+  to authenticated
+  using ((select public.es_admin()))
+  with check ((select public.es_admin()));
+
+-- Sin politica de DELETE: un equipo se da de baja, no se borra.
+
+-- El prestamo apunta al equipo del catalogo. Los prestamos registrados antes
+-- del catalogo quedan sin equipo_id y conservan el nombre escrito a mano.
+alter table public.prestamos add column if not exists equipo_id uuid references public.equipos (id);
+
+-- Un equipo no puede estar prestado dos veces al mismo tiempo: la base lo
+-- impide aunque dos personas registren el mismo equipo en el mismo segundo.
+create unique index if not exists prestamos_equipo_prestado_uk
+  on public.prestamos (equipo_id)
+  where devuelto_en is null and equipo_id is not null;
+
+create index if not exists prestamos_equipo_idx
+  on public.prestamos (equipo_id, fecha_entrega desc);
+
+-- ---------------------------------------------------------------------------
 --  Row Level Security
 --  Sin esto, la anon key que viaja en el navegador dejaria la tabla abierta
 --  a cualquiera. Con RLS activo, solo las sesiones autenticadas entran, y
@@ -201,6 +296,20 @@ begin
       using errcode = '23514';
   end if;
 
+  -- Con equipo del catalogo, el nombre sale del catalogo y no del navegador.
+  -- Queda guardado en el prestamo para que el historial no cambie si despues
+  -- se corrige el nombre en el catalogo.
+  if new.equipo_id is not null then
+    select e.nombre into new.equipo
+    from public.equipos e
+    where e.id = new.equipo_id and e.activo;
+
+    if not found then
+      raise exception 'Ese equipo no existe en el catalogo o esta dado de baja.'
+        using errcode = '23503';
+    end if;
+  end if;
+
   new.registrado_por        := auth.uid();
   new.registrado_por_correo := coalesce(auth.jwt() ->> 'email', new.registrado_por_correo);
   new.correo_prestado       := nullif(lower(btrim(new.correo_prestado)), '');
@@ -233,6 +342,7 @@ as $$
 begin
   new.id                    := old.id;
   new.equipo                := old.equipo;
+  new.equipo_id             := old.equipo_id;
   new.prestado_a            := old.prestado_a;
   new.fecha_entrega         := old.fecha_entrega;
   new.fecha_limite          := old.fecha_limite;
@@ -315,7 +425,7 @@ create table if not exists public.avisos_correo (
 -- base que ya tenia la tabla.
 alter table public.avisos_correo drop constraint if exists avisos_correo_tipo_check;
 alter table public.avisos_correo add constraint avisos_correo_tipo_check
-  check (tipo in ('confirmacion', 'vencido', 'devolucion'));
+  check (tipo in ('confirmacion', 'vencido', 'devolucion', 'recordatorio'));
 
 create index if not exists avisos_correo_prestamo_idx
   on public.avisos_correo (prestamo_id, tipo, enviado_en desc);
@@ -640,6 +750,138 @@ begin
   return enviados;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+--  Recordatorio a mano: el boton "Recordar" del administrador. Sirve tanto
+--  para un prestamo vencido como para uno que esta por vencer. Para no
+--  inundar a nadie, no sale si ya se envio uno hace menos de 10 minutos.
+--  Devuelve una palabra que la app traduce: enviado, sin_correo, devuelto,
+--  reciente, sin_configurar o no_existe.
+-- ---------------------------------------------------------------------------
+create or replace function public.recordar_prestamo(p_prestamo uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  hoy       date := (now() at time zone 'America/Bogota')::date;
+  p         public.prestamos;
+  dias      integer;
+  aviso     text;
+  plazo     text := '';
+  solicitud bigint;
+begin
+  if not public.es_admin() then
+    raise exception 'Solo el administrador puede enviar recordatorios.'
+      using errcode = '42501';
+  end if;
+
+  select * into p from public.prestamos where id = p_prestamo;
+  if not found then
+    return 'no_existe';
+  end if;
+  if p.devuelto_en is not null then
+    return 'devuelto';
+  end if;
+  if p.correo_prestado is null then
+    return 'sin_correo';
+  end if;
+  if exists (
+    select 1 from public.avisos_correo av
+    where av.prestamo_id = p.id
+      and av.tipo = 'recordatorio'
+      and av.enviado_en > now() - interval '10 minutes'
+  ) then
+    return 'reciente';
+  end if;
+
+  if p.fecha_limite is not null and p.fecha_limite < hoy then
+    dias  := hoy - p.fecha_limite;
+    aviso := 'Te recordamos que tu equipo prestado fue este, y el plazo para devolverlo ya venció:';
+    plazo := public.correo_detalle('Plazo vencido el', public.fecha_larga_es(p.fecha_limite)
+               || ' (hace ' || dias || case when dias = 1 then ' día)' else ' días)' end);
+  else
+    aviso := 'Te recordamos que tienes en préstamo este equipo:';
+    if p.fecha_limite is not null then
+      plazo := public.correo_detalle('Devolver a más tardar', public.fecha_larga_es(p.fecha_limite));
+    end if;
+  end if;
+
+  solicitud := public.enviar_correo_brevo(
+    p.correo_prestado,
+    p.prestado_a,
+    'Recordatorio de préstamo: ' || p.equipo,
+    public.correo_html(
+      'Recordatorio de tu préstamo',
+      '<p style="margin:0 0 14px;">Hola ' || public.html_escapar(p.prestado_a) || ', ¿cómo estás?</p>'
+      || '<p style="margin:0 0 14px;">' || aviso || '</p>'
+      || '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px;font-size:15px;">'
+      || public.correo_detalle('Equipo', public.html_escapar(p.equipo))
+      || public.correo_detalle('Entregado el', public.fecha_larga_es(p.fecha_entrega))
+      || plazo
+      || '</table>'
+      || '<p style="margin:0;">Si ya lo devolviste, responde a este correo para que quede registrado.</p>'
+    )
+  );
+
+  if solicitud is null then
+    return 'sin_configurar';
+  end if;
+
+  insert into public.avisos_correo (prestamo_id, tipo, para, solicitud_id)
+  values (p.id, 'recordatorio', p.correo_prestado, solicitud);
+  return 'enviado';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+--  Estado del catalogo: cada equipo con si esta prestado o disponible.
+--  Corre como su dueno para poder mirar todos los prestamos activos, pero
+--  solo le cuenta a cada quien lo que puede saber: quien tiene el equipo,
+--  desde cuando y hasta cuando lo ve el administrador o quien registro ese
+--  prestamo. Los demas solo ven "prestado".
+-- ---------------------------------------------------------------------------
+create or replace function public.estado_equipos()
+returns table (
+  id            uuid,
+  codigo        text,
+  nombre        text,
+  categoria     text,
+  activo        boolean,
+  prestado      boolean,
+  prestamo_id   uuid,
+  responsable   text,
+  fecha_entrega date,
+  fecha_limite  date
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with yo as (
+    select auth.uid() as uid, public.es_admin() as admin
+  )
+  select e.id, e.codigo, e.nombre, e.categoria, e.activo,
+         p.id is not null,
+         case when yo.admin or p.registrado_por = yo.uid then p.id end,
+         case when yo.admin or p.registrado_por = yo.uid then p.prestado_a end,
+         case when yo.admin or p.registrado_por = yo.uid then p.fecha_entrega end,
+         case when yo.admin or p.registrado_por = yo.uid then p.fecha_limite end
+  from public.equipos e
+  cross join yo
+  left join public.prestamos p
+    on p.equipo_id = e.id and p.devuelto_en is null
+  where yo.uid is not null
+  order by e.codigo;
+$$;
+
+revoke all on function public.recordar_prestamo(uuid) from public, anon;
+grant execute on function public.recordar_prestamo(uuid) to authenticated;
+revoke all on function public.estado_equipos() from public, anon;
+grant execute on function public.estado_equipos() to authenticated;
+revoke all on function public.equipos_antes_de_guardar() from public, anon, authenticated;
 
 -- Estas funciones mandan correos desde la cuenta de Brevo: nadie las puede
 -- llamar desde el navegador. Solo las usan el trigger y la tarea diaria.
