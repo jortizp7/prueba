@@ -1469,10 +1469,13 @@
     ajustarMinimoPlazo();
   }
 
-  // Solo se ofrece lo que está disponible, agrupado por categoría.
+  function etiquetaEquipo(e) { return e.codigo + " · " + e.nombre; }
+
+  // El equipo se escribe a mano; mientras se escribe, se sugieren los del
+  // catálogo que están disponibles (con su categoría al lado).
   function llenarSelectorEquipos(preseleccion) {
-    var sel = $("equipo-sel");
-    sel.textContent = "";
+    var lista = $("equipos-disponibles");
+    lista.textContent = "";
     var libres = equipos.filter(function (e) { return e.activo && !e.prestado; })
       .sort(function (a, b) {
         // Sin categoría va al final de la lista.
@@ -1480,29 +1483,32 @@
         return ca === cb ? a.nombre.localeCompare(b.nombre, "es") : ca.localeCompare(cb, "es");
       });
 
-    sel.appendChild(el("option", { value: "", texto: libres.length ? "Elige un equipo…" : "No hay equipos disponibles" }));
-    var grupo = null, grupoNombre = null;
     libres.forEach(function (e) {
-      var nombreGrupo = e.categoria || "Sin categoría";
-      if (nombreGrupo !== grupoNombre) {
-        grupo = el("optgroup", { label: nombreGrupo });
-        sel.appendChild(grupo);
-        grupoNombre = nombreGrupo;
-      }
-      grupo.appendChild(el("option", { value: e.id, texto: e.codigo + " · " + e.nombre }));
+      lista.appendChild(el("option", { value: etiquetaEquipo(e), label: e.categoria || null }));
     });
 
-    sel.value = preseleccion && equiposPorId[preseleccion] && !equiposPorId[preseleccion].prestado ? preseleccion : "";
-    sel.disabled = !libres.length;
-    $("btn-prestar").disabled = !libres.length;
+    var pre = preseleccion && equiposPorId[preseleccion];
+    $("equipo-sel").value = pre && pre.activo && !pre.prestado ? etiquetaEquipo(pre) : "";
 
     var ayuda = $("equipo-ayuda");
-    if (!catalogoListo) ayuda.textContent = "El catálogo no está disponible todavía: hay que actualizar la base en Supabase.";
-    else if (!equipos.length) ayuda.textContent = esAdmin
-      ? "Todavía no hay equipos en el catálogo. Agrégalos en la pestaña Equipos."
-      : "Todavía no hay equipos en el catálogo. El administrador los agrega.";
-    else if (!libres.length) ayuda.textContent = "Todos los equipos están prestados en este momento.";
-    else ayuda.textContent = libres.length === 1 ? "1 equipo disponible." : libres.length + " equipos disponibles.";
+    if (!libres.length) ayuda.textContent = "Escribe el nombre del equipo que vas a prestar.";
+    else ayuda.textContent = "Escribe el nombre del equipo o elige uno del catálogo (" +
+      (libres.length === 1 ? "1 disponible" : libres.length + " disponibles") + ").";
+  }
+
+  // Lo escrito se busca en el catálogo: "EQ-003 · Portátil Lenovo", el código
+  // ("EQ-003") o el nombre. Si no está, el préstamo queda con el nombre
+  // escrito, sin amarrarse al catálogo.
+  function buscarEnCatalogo(texto) {
+    var t = normalizar(texto);
+    var activos = equipos.filter(function (e) { return e.activo; });
+    for (var i = 0; i < activos.length; i++) {
+      if (normalizar(etiquetaEquipo(activos[i])) === t || normalizar(activos[i].codigo) === t) return activos[i];
+    }
+    var mismoNombre = activos.filter(function (e) { return normalizar(e.nombre) === t; });
+    // Si hay varios con el mismo nombre, se toma uno que esté libre.
+    var libre = mismoNombre.filter(function (e) { return !e.prestado; })[0];
+    return libre || mismoNombre[0] || null;
   }
 
   // Las personas a las que ya se les prestó, para elegirlas en vez de
@@ -1565,15 +1571,21 @@
     e.preventDefault();
     limpiarAviso("prestamo-error");
 
-    var equipoId = $("equipo-sel").value;
-    var equipo = equiposPorId[equipoId];
+    var textoEquipo = $("equipo-sel").value.trim();
+    var equipo = textoEquipo ? buscarEnCatalogo(textoEquipo) : null;
     var persona = $("persona").value.trim();
     var correoPersona = $("correo-persona").value.trim().toLowerCase();
     var fecha = $("fecha").value;
     var plazo = $("plazo").value;
     var nota = $("nota").value.trim();
 
-    if (!equipo) { faltaCampo("equipo-sel", "Elige qué equipo vas a prestar."); return; }
+    if (!textoEquipo) { faltaCampo("equipo-sel", "Escribe qué equipo vas a prestar."); return; }
+    if (equipo && equipo.prestado) {
+      faltaCampo("equipo-sel", etiquetaEquipo(equipo) + " ya está prestado. Si es otro equipo, escríbelo con otro nombre.");
+      return;
+    }
+    // Del catálogo se guarda su nombre; si no, el nombre tal como se escribió.
+    var nombreEquipo = equipo ? equipo.nombre : textoEquipo;
     if (!persona) { faltaCampo("persona", "Escribe a quién le entregas el equipo."); return; }
 
     // Si la persona ya existe con otra mayúscula o tilde, se usa el nombre
@@ -1601,8 +1613,8 @@
 
     cliente.from("prestamos")
       .insert({
-        equipo_id: equipo.id,
-        equipo: equipo.nombre,
+        equipo_id: equipo ? equipo.id : null,
+        equipo: nombreEquipo,
         prestado_a: persona,
         correo_prestado: correoPersona || null,
         fecha_entrega: fecha,
@@ -1618,7 +1630,12 @@
           // Si otro alcanzó a prestar ese equipo, se refresca la lista.
           if (res.error.code === "23505" || res.error.code === "23503") {
             cargarDatos();
-            setTimeout(function () { llenarSelectorEquipos(); }, 800);
+            // Se refrescan las sugerencias sin borrar lo que se escribió.
+            setTimeout(function () {
+              var escrito = $("equipo-sel").value;
+              llenarSelectorEquipos();
+              $("equipo-sel").value = escrito;
+            }, 800);
           }
           return;
         }
@@ -1626,7 +1643,7 @@
         filtroPrestamos = "activos";
         marcarChips("[data-filtro-prestamos]", document.querySelector('[data-filtro-prestamos="activos"]'));
         mostrarVista("prestamos");
-        toast("Préstamo registrado correctamente: " + equipo.nombre + " para " + persona + "." +
+        toast("Préstamo registrado correctamente: " + nombreEquipo + " para " + persona + "." +
           (correoPersona ? " La confirmación va para " + correoPersona + "." : ""));
         cargarDatos();
       })

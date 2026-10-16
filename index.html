@@ -292,7 +292,10 @@
 
       <div class="campo">
         <label class="rotulo" for="equipo-sel">Equipo</label>
-        <select class="entrada" id="equipo-sel" name="equipo" required></select>
+        <input class="entrada" type="text" id="equipo-sel" name="equipo" required list="equipos-disponibles"
+               maxlength="120" autocomplete="off" enterkeyhint="next"
+               placeholder="Escribe el equipo o elige uno del catálogo" aria-describedby="equipo-ayuda">
+        <datalist id="equipos-disponibles"></datalist>
         <p id="equipo-ayuda" class="campo__ayuda"></p>
       </div>
 
